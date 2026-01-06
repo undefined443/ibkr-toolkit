@@ -83,3 +83,14 @@ class Config:
     def log_file(self) -> Optional[str]:
         """Get log file path"""
         return os.getenv("LOG_FILE")
+
+    @property
+    def first_trade_year(self) -> Optional[int]:
+        """Get first year of trading"""
+        year_str = os.getenv("FIRST_TRADE_YEAR")
+        if year_str:
+            try:
+                return int(year_str)
+            except ValueError:
+                return None
+        return None

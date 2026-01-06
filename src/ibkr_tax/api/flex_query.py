@@ -43,9 +43,13 @@ class FlexQueryClient:
         self.base_url = "https://gdcdyn.interactivebrokers.com/Universal/servlet"
         logger.debug(f"Initialized FlexQueryClient with query_id: {query_id}")
 
-    def request_report(self) -> str:
+    def request_report(self, from_date: str = None, to_date: str = None) -> str:
         """
         Request report generation
+
+        Args:
+            from_date: Start date in YYYYMMDD format (optional, overrides query default)
+            to_date: End date in YYYYMMDD format (optional, overrides query default)
 
         Returns:
             Reference code for retrieving the report
@@ -60,7 +64,16 @@ class FlexQueryClient:
             "v": "3",  # API version
         }
 
-        logger.info("Requesting report from IBKR...")
+        # Add date override parameters if provided
+        if from_date:
+            params["fd"] = from_date
+        if to_date:
+            params["td"] = to_date
+
+        date_info = ""
+        if from_date and to_date:
+            date_info = f" (from {from_date} to {to_date})"
+        logger.info(f"Requesting report from IBKR{date_info}...")
 
         try:
             response = requests.get(url, params=params, timeout=30)
@@ -154,9 +167,13 @@ class FlexQueryClient:
 
         raise APIError(f"Report retrieval timeout after {max_retries} attempts")
 
-    def fetch_data(self) -> Union[Dict[str, Any], list]:
+    def fetch_data(self, from_date: str = None, to_date: str = None) -> Union[Dict[str, Any], list]:
         """
         Complete workflow: request and retrieve data
+
+        Args:
+            from_date: Start date in YYYYMMDD format (optional, overrides query default)
+            to_date: End date in YYYYMMDD format (optional, overrides query default)
 
         Returns:
             Report data as dictionary or list (for multiple accounts)
@@ -164,7 +181,7 @@ class FlexQueryClient:
         Raises:
             APIError: If any step fails
         """
-        reference_code = self.request_report()
+        reference_code = self.request_report(from_date=from_date, to_date=to_date)
         time.sleep(2)  # Wait for report generation
         data = self.get_report(reference_code)
         return data
