@@ -7,7 +7,7 @@ import argparse
 import json
 import sys
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 import pandas as pd
 
@@ -307,6 +307,9 @@ def main() -> None:
         # Step 3: Fetch data from IBKR
         logger.info("Step 3: Fetching data from IBKR...")
         client = FlexQueryClient(config.token, config.query_id)
+
+        # Type hint for data variable (can be single year data or list of year data)
+        data: Union[Dict[str, Any], List[Any]]
 
         if years_to_fetch and len(years_to_fetch) > 1:
             # Multi-year mode: fetch year by year

@@ -43,7 +43,7 @@ class FlexQueryClient:
         self.base_url = "https://gdcdyn.interactivebrokers.com/Universal/servlet"
         logger.debug(f"Initialized FlexQueryClient with query_id: {query_id}")
 
-    def request_report(self, from_date: str = None, to_date: str = None) -> str:
+    def request_report(self, from_date: str | None = None, to_date: str | None = None) -> str:
         """
         Request report generation
 
@@ -167,7 +167,9 @@ class FlexQueryClient:
 
         raise APIError(f"Report retrieval timeout after {max_retries} attempts")
 
-    def fetch_data(self, from_date: str = None, to_date: str = None) -> Union[Dict[str, Any], list]:
+    def fetch_data(
+        self, from_date: str | None = None, to_date: str | None = None
+    ) -> Union[Dict[str, Any], list]:
         """
         Complete workflow: request and retrieve data
 
