@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# Cache
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+
+# Data and logs
+data/
+*.log
+
+# Generated files
+uv.lock
+
+# Temporary files
+*.tmp
+*.bak
