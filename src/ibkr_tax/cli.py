@@ -240,7 +240,11 @@ def main() -> None:
 
     # Validate arguments
     if sum([bool(args.year), bool(args.from_year), args.all]) > 1:
-        logger.error("Cannot specify multiple date options: --year, --from-year, and --all are mutually exclusive")
+        error_msg = (
+            "Cannot specify multiple date options: "
+            "--year, --from-year, and --all are mutually exclusive"
+        )
+        logger.error(error_msg)
         print("\n✗ Error: Please specify only one of: --year, --from-year, or --all")
         sys.exit(1)
 
@@ -274,7 +278,9 @@ def main() -> None:
             start_year = args.from_year
 
         years_to_fetch = list(range(start_year, current_year + 1))
-        logger.info(f"Fetching data from {start_year} to {current_year} ({len(years_to_fetch)} years)")
+        logger.info(
+            f"Fetching data from {start_year} to {current_year} ({len(years_to_fetch)} years)"
+        )
 
     try:
         # Step 1: Load configuration
@@ -318,7 +324,7 @@ def main() -> None:
                     logger.info(f"  ✓ Year {year} fetched successfully")
                 except APIError as e:
                     logger.warning(f"  ! Failed to fetch year {year}: {e}")
-                    logger.warning(f"  Continuing with remaining years...")
+                    logger.warning("  Continuing with remaining years...")
 
             if not all_data:
                 logger.error("Failed to fetch any data")
@@ -354,7 +360,12 @@ def main() -> None:
 
         # Step 4: Parse data
         logger.info("Step 4: Parsing data...")
-        if years_to_fetch and len(years_to_fetch) > 1 and isinstance(data, list) and not isinstance(data[0], dict):
+        if (
+            years_to_fetch
+            and len(years_to_fetch) > 1
+            and isinstance(data, list)
+            and not isinstance(data[0], dict)
+        ):
             # Multi-year mode: process each year and combine
             all_trades = []
             all_dividends = []
@@ -370,10 +381,15 @@ def main() -> None:
                     all_taxes.append(taxes)
 
             trades_df = pd.concat(all_trades, ignore_index=True) if all_trades else pd.DataFrame()
-            dividends_df = pd.concat(all_dividends, ignore_index=True) if all_dividends else pd.DataFrame()
+            dividends_df = (
+                pd.concat(all_dividends, ignore_index=True) if all_dividends else pd.DataFrame()
+            )
             tax_df = pd.concat(all_taxes, ignore_index=True) if all_taxes else pd.DataFrame()
 
-            logger.info(f"Combined data: {len(trades_df)} trades, {len(dividends_df)} dividends, {len(tax_df)} taxes")
+            logger.info(
+                f"Combined data: {len(trades_df)} trades, "
+                f"{len(dividends_df)} dividends, {len(tax_df)} taxes"
+            )
         else:
             trades_df, dividends_df, tax_df = process_accounts(data, logger)
 

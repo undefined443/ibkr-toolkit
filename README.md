@@ -57,6 +57,7 @@ OUTPUT_DIR=./data/output
 ```
 
 配置参数说明：
+
 - `IBKR_FLEX_TOKEN`: IBKR Flex Query Token（必填）
 - `IBKR_QUERY_ID`: IBKR Flex Query ID（必填）
 - `USD_CNY_RATE`: 固定汇率，作为 API 失败时的备用汇率（默认 7.2）
@@ -87,6 +88,7 @@ uv run ibkr-tax --help
 ```
 
 **日期参数说明**：
+
 - `--year` / `-y`：指定单个税务年度，查询该年 1月1日 至 12月31日 的数据
 - `--from-year`：指定起始年份，自动分年查询从该年到当前年份的所有数据
 - `--all`：查询从 `FIRST_TRADE_YEAR`（.env 配置）到当前年份的所有数据
@@ -94,6 +96,7 @@ uv run ibkr-tax --help
 - 这些参数互斥，只能使用其中一个
 
 **多年查询特性**：
+
 - 使用 `--from-year` 或 `--all` 时，工具会自动按年分段查询
 - 每年查询一次（1/1 - 12/31），自动合并所有数据
 - 某一年查询失败不会中断，会继续查询其他年份
@@ -133,6 +136,7 @@ uv run ibkr-tax --help
 #### 日期范围设置
 
 根据你需要分析的时间段设置：
+
 - **From**: 开始日期（如 2025-01-01）
 - **To**: 结束日期（如 2025-12-31）
 
@@ -167,11 +171,13 @@ uv run ibkr-tax
 ### 动态汇率（推荐）
 
 **配置方式**：
+
 ```bash
 USE_DYNAMIC_EXCHANGE_RATES=true
 ```
 
 **工作原理**：
+
 1. 为每笔交易获取**当日的实际汇率**（不是月平均汇率）
 2. 优先从本地缓存读取（`data/cache/exchange_rates_cache.json`）
 3. 缓存未命中时，按以下顺序调用 API：
@@ -181,11 +187,13 @@ USE_DYNAMIC_EXCHANGE_RATES=true
 5. 成功获取的汇率会自动缓存供后续使用
 
 **优势**：
+
 - 精确的税务计算，每笔交易使用当日汇率
 - 符合税务申报要求
 - 缓存机制提高性能，减少 API 调用
 
 **示例**：
+
 ```
 2025-01-05: 买入股票 $1000 → 使用 1月5日汇率 7.2456 = ¥7,245.60
 2025-01-15: 卖出股票 $1200 → 使用 1月15日汇率 7.2512 = ¥8,701.44
@@ -195,17 +203,20 @@ USE_DYNAMIC_EXCHANGE_RATES=true
 ### 固定汇率
 
 **配置方式**：
+
 ```bash
 USE_DYNAMIC_EXCHANGE_RATES=false
 USD_CNY_RATE=7.2
 ```
 
 **工作原理**：
+
 - 所有美元金额统一使用 `USD_CNY_RATE` 转换为人民币
 - 简化计算，不调用任何外部 API
 - 适合网络不稳定或小额交易场景
 
 **示例**：
+
 ```
 所有交易使用固定汇率 7.2
 $1000 → ¥7,200.00
@@ -234,6 +245,7 @@ $50   → ¥360.00
 **缓存位置**：`data/cache/exchange_rates_cache.json`
 
 **缓存结构**：
+
 ```json
 {
   "2025-01-15": 7.2456,
@@ -243,6 +255,7 @@ $50   → ¥360.00
 ```
 
 **建议**：
+
 - 每个税务年度初清理缓存，避免使用过期数据
 - 可以手动编辑缓存文件添加已知的汇率
 
@@ -255,6 +268,7 @@ $50   → ¥360.00
 根据中国税法，境外投资收益（包括交易盈亏和股息）适用 **20% 的固定税率**。
 
 代码定义位置：`src/ibkr_tax/constants.py:20`
+
 ```python
 CHINA_DIVIDEND_TAX_RATE = 0.20  # 20% tax rate
 ```
@@ -268,11 +282,13 @@ CHINA_DIVIDEND_TAX_RATE = 0.20  # 20% tax rate
 ```
 
 **应税所得构成**：
+
 ```
 应税所得 = 交易净利润（人民币）+ 股息收入（人民币）
 ```
 
 其中：
+
 - **交易净利润** = 已实现损益 - 手续费（均按人民币计算）
 - **股息收入** = 所有美元股息按汇率转换后的人民币金额
 
@@ -283,6 +299,7 @@ CHINA_DIVIDEND_TAX_RATE = 0.20  # 20% tax rate
 ```
 
 这个公式确保：
+
 - 不超额抵免（取较小值）
 - 最多抵免到中国税率对应的税额
 - 符合中国税法关于境外所得税收抵免的规定
@@ -300,12 +317,14 @@ CHINA_DIVIDEND_TAX_RATE = 0.20  # 20% tax rate
 假设 2025 年有以下数据（已转换为人民币）：
 
 **输入数据**：
+
 - 交易盈亏：¥10,000
 - 佣金：¥200
 - 股息收入：¥3,000
 - 境外预扣税：¥450
 
 **计算过程**：
+
 ```
 1. 交易净利润 = 10,000 - 200 = ¥9,800
 2. 应税所得 = 9,800 + 3,000 = ¥12,800
@@ -319,15 +338,18 @@ CHINA_DIVIDEND_TAX_RATE = 0.20  # 20% tax rate
 ### 特殊情况处理
 
 **亏损情况**：
+
 - 如果交易产生亏损（负的盈亏），会直接体现在应税所得中
 - 交易亏损可以抵减股息收入
 - 示例：交易亏损 ¥5,000 + 股息 ¥3,000 = 应税所得 -¥2,000（可能无需缴税）
 
 **无股息情况**：
+
 - 如果没有股息收入，外国税额抵免为 0
 - 仅对交易净利润征税
 
 **无交易盈亏情况**：
+
 - 如果只有股息收入，应税所得 = 股息收入
 - 可以抵免境外预扣的股息税
 
@@ -346,6 +368,7 @@ CHINA_DIVIDEND_TAX_RATE = 0.20  # 20% tax rate
 包含 4 个工作表：
 
 #### Sheet 1: Trades（交易明细）
+
 - Symbol: 股票代码
 - Date: 交易日期
 - Quantity: 数量
@@ -359,6 +382,7 @@ CHINA_DIVIDEND_TAX_RATE = 0.20  # 20% tax rate
 - Commission_CNY: 人民币佣金
 
 #### Sheet 2: Dividends（股息明细）
+
 - Symbol: 股票代码
 - Date: 发放日期
 - Amount: 股息金额
@@ -367,6 +391,7 @@ CHINA_DIVIDEND_TAX_RATE = 0.20  # 20% tax rate
 - Amount_CNY: 人民币金额
 
 #### Sheet 3: Withholding_Tax（预扣税明细）
+
 - Date: 日期
 - Amount: 预扣税金额
 - Currency: 货币
@@ -374,6 +399,7 @@ CHINA_DIVIDEND_TAX_RATE = 0.20  # 20% tax rate
 - Amount_CNY: 人民币金额
 
 #### Sheet 4: Summary（汇总数据）
+
 - Trade_Summary: 交易汇总
   - Total_Trades: 总交易笔数
   - Realized_PnL_USD: 美元盈亏
@@ -467,6 +493,32 @@ ruff check src tests
 ruff check --fix src tests
 ```
 
+### Pre-commit Hooks
+
+项目配置了 pre-commit hooks 来自动检查代码质量和敏感信息：
+
+```bash
+# 安装 pre-commit hooks
+uv run pre-commit install
+
+# 手动运行所有 hooks
+uv run pre-commit run --all-files
+
+# 跳过 hooks 提交（不推荐）
+git commit --no-verify
+```
+
+**配置的检查项**：
+
+- ✅ 代码格式化（ruff）
+- ✅ Markdown/YAML/JSON 格式化（prettier）
+- ✅ 检测私钥泄露
+- ✅ 防止提交 .env 文件
+- ✅ 防止提交输出文件（包含财务数据）
+- ✅ 防止提交大文件（>500KB）
+- ✅ 检查合并冲突标记
+- ✅ 修复行尾空格和文件末尾换行
+
 ### 添加依赖
 
 ```bash
@@ -506,13 +558,15 @@ uv add --dev package-name
 ### Q7: 如何验证计算结果的准确性？
 
 **A**:
+
 1. 检查 Excel 中每笔交易的汇率和人民币金额
-2. 对比原始数据文件（raw_data_*.json）
+2. 对比原始数据文件（raw*data*\*.json）
 3. 使用 Summary sheet 中的数据与自己的记录核对
 
 ### Q8: 遇到 API 错误怎么办？
 
 **A**:
+
 1. 检查 `.env` 中的 `IBKR_FLEX_TOKEN` 和 `IBKR_QUERY_ID` 是否正确
 2. 确认 IBKR Flex Query 已正确配置并包含必需的数据类型
 3. 检查网络连接
@@ -521,6 +575,7 @@ uv add --dev package-name
 ### Q9: 如何查询特定年份的数据？
 
 **A**: 使用 `--year` 参数指定税务年度：
+
 ```bash
 # 查询 2025 年数据
 uv run ibkr-tax --year 2025
@@ -528,11 +583,13 @@ uv run ibkr-tax --year 2025
 # 查询 2024 年数据
 uv run ibkr-tax --year 2024
 ```
+
 工具会自动查询该年度 1月1日 至 12月31日 的所有交易记录，无需修改 Flex Query 配置。
 
 ### Q10: Flex Query 中配置的日期会被覆盖吗？
 
 **A**: 是的。当使用 `--year`、`--from-year` 或 `--all` 参数时，命令行指定的日期范围会覆盖 Flex Query 中预设的日期。建议：
+
 - 在 Flex Query 中设置一个默认日期范围（如最近一年）
 - 在实际使用时通过命令行参数指定具体年份
 - 这样可以灵活查询不同年份的数据而无需修改 Flex Query 配置
@@ -542,12 +599,14 @@ uv run ibkr-tax --year 2024
 **A**: 有两种方法：
 
 方法 1：使用 `--from-year` 参数
+
 ```bash
 # 从 2020 年查询到现在
 uv run ibkr-tax --from-year 2020
 ```
 
 方法 2：使用 `--all` 参数（推荐）
+
 ```bash
 # 1. 在 .env 文件中设置首次交易年份
 echo "FIRST_TRADE_YEAR=2020" >> .env
@@ -561,6 +620,7 @@ uv run ibkr-tax --all
 ### Q12: 多年查询会不会很慢？
 
 **A**: 会比单年查询慢，但工具已做优化：
+
 - 按年分段查询，每年独立请求（避免 IBKR 365 天限制）
 - 某一年失败不影响其他年份
 - 显示实时进度，可以看到当前查询状态
@@ -569,6 +629,7 @@ uv run ibkr-tax --all
 ### Q13: 多年数据的汇率如何计算？
 
 **A**: 与单年查询完全相同：
+
 - 动态汇率模式：每笔交易使用其交易日的实际汇率
 - 固定汇率模式：所有交易使用配置的固定汇率
 - 汇率缓存跨年共享，减少 API 调用

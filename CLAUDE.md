@@ -76,11 +76,13 @@ ibkr-tax/
 ### 1. API 客户端 (`api/flex_query.py`)
 
 负责与 IBKR Flex Query API 交互：
+
 - `request_report()`: 请求报告生成，支持 `from_date` 和 `to_date` 参数
 - `get_report()`: 获取报告数据，支持重试机制
 - `fetch_data()`: 完整工作流，结合请求和获取
 
 **重要特性**：
+
 - 支持动态日期参数覆盖 Flex Query 配置
 - 使用 `fd` (from date) 和 `td` (to date) 参数
 - 最多支持 365 天的数据查询（IBKR 限制）
@@ -88,12 +90,14 @@ ibkr-tax/
 ### 2. 数据解析器 (`parsers/data_parser.py`)
 
 负责解析 IBKR 数据并计算税务：
+
 - `parse_trades()`: 解析交易记录
 - `parse_dividends()`: 解析股息数据
 - `parse_withholding_tax()`: 解析预扣税
 - `calculate_summary()`: 计算税务汇总
 
 **税务计算逻辑**：
+
 - 固定税率：20%（`constants.py:CHINA_DIVIDEND_TAX_RATE`）
 - 应纳税额 = (交易净利润 + 股息收入) × 20%
 - 可抵免税额 = min(境外预扣税, 股息收入 × 20%)
@@ -102,6 +106,7 @@ ibkr-tax/
 ### 3. 汇率服务 (`services/exchange_rate.py`)
 
 提供汇率查询和缓存：
+
 - 支持动态汇率（从 API 获取当日汇率）
 - 支持固定汇率（使用配置的固定值）
 - 本地缓存机制（`data/cache/exchange_rates_cache.json`）
@@ -112,6 +117,7 @@ ibkr-tax/
 ### 4. 命令行接口 (`cli.py`)
 
 提供用户交互界面：
+
 - 支持 `--year` / `-y` 参数指定单个税务年度
 - 支持 `--from-year` 参数指定起始年份（多年查询）
 - 支持 `--all` 参数查询从 `FIRST_TRADE_YEAR` 到当前的所有数据
@@ -120,6 +126,7 @@ ibkr-tax/
 - 生成 Excel、JSON 格式的输出文件
 
 **多年查询机制**：
+
 - 当使用 `--from-year` 或 `--all` 时，自动按年分段查询
 - 每年独立请求 IBKR API（1/1 - 12/31）
 - 某一年查询失败不影响其他年份
@@ -131,10 +138,12 @@ ibkr-tax/
 ### 环境变量（`.env`）
 
 必需：
+
 - `IBKR_FLEX_TOKEN`: IBKR API Token
 - `IBKR_QUERY_ID`: Flex Query ID
 
 可选：
+
 - `USD_CNY_RATE`: 固定汇率（默认 7.2）
 - `USE_DYNAMIC_EXCHANGE_RATES`: 是否使用动态汇率（默认 true）
 - `OUTPUT_DIR`: 输出目录（默认 ./data/output）
@@ -183,6 +192,48 @@ ruff check src tests
 ruff check --fix src tests
 ```
 
+### Pre-commit Hooks
+
+项目使用 pre-commit 自动化代码质量检查和安全检查：
+
+```bash
+# 首次设置：安装 hooks 到 .git/hooks
+uv run pre-commit install
+
+# 手动运行所有文件检查
+uv run pre-commit run --all-files
+
+# 只检查暂存的文件
+uv run pre-commit run
+
+# 更新 hooks 到最新版本
+uv run pre-commit autoupdate
+```
+
+**安全检查**：
+
+- 检测私钥（detect-private-key）
+- 防止提交 .env 文件
+- 防止提交 data/output/ 下的财务数据文件
+- 防止提交缓存文件
+- 检测大文件（>500KB）
+
+**代码质量检查**：
+
+- Python 代码格式化和 linting（ruff）
+- Markdown/YAML/JSON 格式化（prettier）
+- 移除行尾空格
+- 确保文件末尾有换行
+- 检查合并冲突标记
+- 验证 YAML/JSON/TOML 语法
+
+**工作流程**：
+
+1. 配置好后，每次 `git commit` 都会自动运行检查
+2. 如果检查失败，提交会被阻止
+3. 修复问题后重新提交
+4. 紧急情况可以用 `git commit --no-verify` 跳过（不推荐）
+
 ### 运行工具
 
 ```bash
@@ -230,6 +281,7 @@ uv run ibkr-tax --help
 ### 查看原始数据
 
 工具会保存原始 JSON 数据到 `data/output/raw_data_*.json`，可用于：
+
 - 调试数据解析问题
 - 验证 IBKR API 响应
 - 审计数据完整性
@@ -237,6 +289,7 @@ uv run ibkr-tax --help
 ### 启用详细日志
 
 修改 `cli.py` 中的日志级别：
+
 ```python
 logger = setup_logger("ibkr_tax", level="DEBUG", console=True)
 ```
@@ -260,6 +313,7 @@ uv run ibkr-tax --all
 ### 验证多年查询
 
 使用多年查询功能时需要注意：
+
 - 检查每年的查询状态（日志中会显示 `✓ Year XXXX fetched successfully`）
 - 查看合并后的数据量是否符合预期
 - 验证汇率缓存是否正确跨年使用

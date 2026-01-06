@@ -24,5 +24,34 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-added-large-files
+        args: ["--maxkb=500"]
       - id: check-merge-conflict
       - id: check-toml
+      - id: check-json
+      - id: check-case-conflict
+      - id: detect-private-key
+      - id: mixed-line-ending
+
+  # Prevent committing sensitive files
+  - repo: local
+    hooks:
+      # Prevent committing .env files
+      - id: prevent-env-commit
+        name: Prevent .env file commits
+        entry: "ERROR: .env files contain sensitive credentials and should not be committed"
+        language: fail
+        files: ^\.env$
+
+      # Prevent committing output files with financial data
+      - id: prevent-output-commit
+        name: Prevent output file commits
+        entry: "ERROR: Output files contain financial data and should not be committed"
+        language: fail
+        files: ^data/output/.*\.(xlsx|json)$
+
+      # Prevent committing exchange rate cache
+      - id: prevent-cache-commit
+        name: Prevent cache file commits
+        entry: "ERROR: Cache files should not be committed to repository"
+        language: fail
+        files: ^(data/cache/|exchange_rates_cache\.json)

@@ -58,3 +58,8 @@ python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
 addopts = "-v --cov=ibkr_tax --cov-report=term-missing"
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.3.0",
+]
