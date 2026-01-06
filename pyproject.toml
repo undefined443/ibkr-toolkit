@@ -1,0 +1,63 @@
+[project]
+name = "ibkr-tax"
+version = "0.1.0"
+description = "A tool for fetching and processing IBKR trading data for Chinese tax filing"
+authors = [
+    {name = "IBKR Tax Tool Contributors"}
+]
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+dependencies = [
+    "requests>=2.31.0",
+    "xmltodict>=0.13.0",
+    "pandas>=2.0.0",
+    "openpyxl>=3.1.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.1.0",
+    "mdformat>=0.7.0",
+    "mdformat-gfm>=0.3.0",
+    "mdformat-tables>=0.4.0",
+    "pre-commit>=3.0.0",
+    "mypy>=1.0.0",
+    "types-requests>=2.31.0",
+]
+
+[project.scripts]
+ibkr-tax = "ibkr_tax.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/ibkr-tax"
+Repository = "https://github.com/yourusername/ibkr-tax"
+Documentation = "https://github.com/yourusername/ibkr-tax/blob/main/README.md"
+
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N"]
+ignore = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = "-v --cov=ibkr_tax --cov-report=term-missing"
