@@ -64,3 +64,6 @@ exchange_rates_cache.json
 
 # Logs
 *.log
+
+# Lock files (use uv.lock locally but don't commit)
+uv.lock
