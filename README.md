@@ -365,40 +365,58 @@ CHINA_DIVIDEND_TAX_RATE = 0.20  # 20% tax rate
 
 **文件名格式**：`ibkr_report_YYYYMMDD_HHMMSS.xlsx`
 
-包含 4 个工作表：
+包含 5 个工作表：
 
 #### Sheet 1: Trades（交易明细）
 
+- DateTime: 交易日期时间
 - Symbol: 股票代码
-- Date: 交易日期
+- Description: 证券名称
 - Quantity: 数量
 - Price: 价格
-- Proceeds: 交易金额
+- Amount: 交易金额
+- Cost: 成本
 - Commission: 佣金
-- Realized_PnL: 已实现盈亏
+- Realized PnL: 已实现盈亏
+- Buy Sell: 买入/卖出
 - Currency: 货币
-- Exchange_Rate: 汇率（动态汇率模式）
-- Realized_PnL_CNY: 人民币盈亏
-- Commission_CNY: 人民币佣金
+- Asset Category: 资产类别
+- Open DateTime: 开仓时间
+- Account: 账户
 
 #### Sheet 2: Dividends（股息明细）
 
-- Symbol: 股票代码
 - Date: 发放日期
+- Symbol: 股票代码
+- Description: 证券名称
 - Amount: 股息金额
 - Currency: 货币
-- Exchange_Rate: 汇率（动态汇率模式）
-- Amount_CNY: 人民币金额
+- Type: 类型
+- Account: 账户
 
-#### Sheet 3: Withholding_Tax（预扣税明细）
+#### Sheet 3: Withholding Tax（预扣税明细）
 
 - Date: 日期
+- Symbol: 股票代码
+- Description: 证券名称
 - Amount: 预扣税金额
 - Currency: 货币
-- Exchange_Rate: 汇率（动态汇率模式）
-- Amount_CNY: 人民币金额
+- Type: 类型
+- Account: 账户
 
-#### Sheet 4: Summary（汇总数据）
+#### Sheet 4: Deposits & Withdrawals（存取款明细）
+
+- Date: 日期
+- Time: 时间
+- Description: 描述
+- Amount: 金额
+- Currency: 货币
+- FX Rate To Base: 汇率
+- Amount Base Currency: 基础货币金额
+- Transaction Type: 交易类型
+- Account: 账户
+
+#### Sheet 5: Summary（汇总数据）
 
 - Trade_Summary: 交易汇总
   - Total_Trades: 总交易笔数
@@ -633,6 +651,77 @@ uv run ibkr-tax --all
 - 动态汇率模式：每笔交易使用其交易日的实际汇率
 - 固定汇率模式：所有交易使用配置的固定汇率
 - 汇率缓存跨年共享，减少 API 调用
+
+## 中国税务申报参考
+
+### 官方资源
+
+**国家税务总局**
+
+- [官方网站](https://www.chinatax.gov.cn/)
+- [个人所得税专题](https://www.chinatax.gov.cn/chinatax/n810341/n810760/index.html)
+
+**个人所得税 APP**
+
+- [APP 下载页面](https://etax.chinatax.gov.cn/download.html)
+- 用途：境外所得年度自行申报
+
+**相关政策文件**
+
+- [《中华人民共和国个人所得税法》](https://jdjc.mof.gov.cn/fgzd/202201/t20220118_3783067.htm)
+- [《关于境外所得有关个人所得税政策的公告》（财政部 税务总局公告 2020年第3号）](https://www.gov.cn/zhengce/zhengceku/2020-01/22/content_5471604.htm)
+
+### 申报要点
+
+1. **申报时间**：次年 3月1日 至 6月30日
+2. **申报方式**：
+   - 个人所得税 APP（推荐）
+   - 自然人电子税务局网页版
+   - 办税服务厅现场办理
+
+3. **所需资料**：
+   - 境外所得证明（本工具生成的 Excel 报表）
+   - 境外纳税凭证（IBKR 税务文件，获取方法见下文）
+   - 身份证件
+
+4. **税收抵免**：
+   - 境外已缴税款可抵免
+   - 抵免限额 = 境外所得 × 中国税率（20%）
+
+### 注意事项
+
+- 本工具计算结果仅供参考，不构成税务建议
+- 实际申报时请以税务机关要求为准
+- 建议咨询专业税务顾问确认申报细节
+- 保存好所有交易凭证和纳税证明以备核查
+
+### 如何获取 IBKR 税务文件
+
+IBKR 每年会为账户持有人生成税务文件，用于证明境外已缴纳的税款。
+
+**获取步骤**：
+
+1. 登录 [IBKR 客户端门户](https://www.interactivebrokers.com/portal)
+2. 点击 **Performance & Reports** → **Tax Documents**
+   - 或通过 **Menu** → **Reporting** → **Tax Documents**
+3. 选择所需年份，下载税务文件
+
+**常见税务文件类型**：
+
+- **Form 1042-S**：非美国居民的美国来源收入预扣税证明（含股息税）
+- **年度报表**：完整的交易和收入记录
+- **股息报告**：股息收入明细
+
+**文件可用时间**：
+
+- 年度报表：次年 2月1日 起
+- 股息报告：次年 2月15日 起
+- Form 1042-S：次年 3月15日 起
+
+**参考链接**：
+
+- [IBKR 税务文件指南（英文）](https://www.ibkrguides.com/clientportal/performanceandstatements/taxreporting.htm)
+- [IBKR 税务信息概览（中文）](https://www.interactivebrokers.com/cn/support/tax-overview.php)
 
 ## 许可证
 
