@@ -377,7 +377,7 @@ CHINA_DIVIDEND_TAX_RATE = 0.20  # 20% tax rate
 - Amount: 交易金额
 - Cost: 成本
 - Commission: 佣金
-- Realized PnL: 已实现盈亏
+- Realized P&L: 已实现盈亏
 - Buy Sell: 买入/卖出
 - Currency: 货币
 - Asset Category: 资产类别
@@ -420,11 +420,11 @@ CHINA_DIVIDEND_TAX_RATE = 0.20  # 20% tax rate
 
 - Trade_Summary: 交易汇总
   - Total_Trades: 总交易笔数
-  - Realized_PnL_USD: 美元盈亏
-  - Realized_PnL_CNY: 人民币盈亏
+  - Realized_P&L_USD: 美元盈亏
+  - Realized_P&L_CNY: 人民币盈亏
   - Total_Commission_USD: 美元佣金
   - Total_Commission_CNY: 人民币佣金
-  - Net_PnL_CNY: 净盈亏（人民币）
+  - Net_P&L_CNY: 净盈亏（人民币）
   - Average_Exchange_Rate: 平均汇率
 
 - Dividend_Summary: 股息汇总
