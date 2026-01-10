@@ -112,16 +112,8 @@ def _convert_date_columns(df: pd.DataFrame) -> pd.DataFrame:
     for col in df_copy.columns:
         col_lower = col.lower()
 
-        # Handle DateTime column (format: YYYYMMDD HH:MM:SS)
-        if col_lower == "datetime":
-            try:
-                df_copy[col] = pd.to_datetime(
-                    df_copy[col], format="%Y%m%d %H:%M:%S", errors="coerce"
-                )
-            except Exception:
-                pass
         # Handle Date columns (format: YYYYMMDD)
-        elif col_lower == "date":
+        if col_lower == "date":
             try:
                 df_copy[col] = pd.to_datetime(df_copy[col], format="%Y%m%d", errors="coerce")
                 if df_copy[col].isna().all():

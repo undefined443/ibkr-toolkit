@@ -58,24 +58,14 @@ def parse_trades(flex_data: Dict[str, Any]) -> pd.DataFrame:
 
     trade_list = []
     for lot in lots:
-        # Parse datetime from @dateTime field (format: YYYYMMDD;HHMMSS)
-        date_time_str = lot.get("@dateTime", "")
-        if ";" in date_time_str:
-            date_part, time_part = date_time_str.split(";")
-            # Convert HHMMSS to HH:MM:SS
-            if len(time_part) == 6:
-                time_formatted = f"{time_part[0:2]}:{time_part[2:4]}:{time_part[4:6]}"
-                datetime_combined = f"{date_part} {time_formatted}"
-            else:
-                datetime_combined = f"{date_part} {time_part}"
-        else:
-            # Fallback to @tradeDate if @dateTime not available
-            date_part = lot.get("@tradeDate", "")
-            datetime_combined = date_part
-
         trade_list.append(
             {
-                "DateTime": datetime_combined,
+                "Date": lot.get("@tradeDate", lot.get("@dateTime", "")).split(";")[0]
+                if lot.get("@tradeDate") or lot.get("@dateTime")
+                else "",
+                "Time": lot.get("@dateTime", "").split(";")[1]
+                if ";" in lot.get("@dateTime", "")
+                else "",
                 "Symbol": lot.get("@symbol", ""),
                 "Description": lot.get("@description", ""),
                 "Quantity": abs(safe_float(lot.get("@quantity"))),
@@ -312,10 +302,8 @@ def calculate_summary(
         # Calculate CNY amounts using date-specific rates
         if use_dynamic_rates and rate_service:
             print("  Using dynamic exchange rates for trades...")
-            # Extract date from DateTime column for exchange rate lookup
-            usd_trades["Date_Only"] = pd.to_datetime(usd_trades["DateTime"]).dt.date
-            usd_trades["Exchange_Rate"] = usd_trades["Date_Only"].apply(
-                lambda d: rate_service.get_rate(str(d).replace("-", ""), default_rate)
+            usd_trades["Exchange_Rate"] = usd_trades["Date"].apply(
+                lambda d: rate_service.get_rate(d, default_rate)
             )
             usd_trades["Realized P&L CNY"] = (
                 usd_trades["Realized P&L"] * usd_trades["Exchange_Rate"]

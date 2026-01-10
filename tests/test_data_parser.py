@@ -30,7 +30,7 @@ def test_parse_trades(sample_flex_data):
     assert len(df) == 1
     assert df.iloc[0]["Symbol"] == "AAPL"
     assert df.iloc[0]["Quantity"] == 10.0
-    assert df.iloc[0]["Realized_PnL"] == 100.0
+    assert df.iloc[0]["Realized P&L"] == 100.0
 
 
 def test_parse_trades_empty():
@@ -88,7 +88,7 @@ def test_calculate_summary(sample_flex_data):
 
     # Check trade summary
     assert summary["Trade_Summary"]["Total_Trades"] == 1
-    assert summary["Trade_Summary"]["Realized_PnL_USD"] == 100.0
+    assert summary["Trade_Summary"]["Realized_P&L_USD"] == 100.0
 
     # Check dividend summary
     assert summary["Dividend_Summary"]["Total_Amount_USD"] == 10.5
