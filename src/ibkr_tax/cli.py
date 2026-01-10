@@ -59,22 +59,26 @@ def export_to_excel(
         with pd.ExcelWriter(filepath, engine="openpyxl") as writer:
             # Write data sheets
             if not trades_df.empty:
-                trades_converted = _format_column_names(_convert_date_columns(trades_df))
+                trades_sorted = _sort_by_date_time(trades_df)
+                trades_converted = _format_column_names(_convert_date_columns(trades_sorted))
                 trades_converted.to_excel(writer, sheet_name="Trades", index=False)
                 _format_sheet(writer, "Trades", trades_converted)
 
             if not dividends_df.empty:
-                dividends_converted = _format_column_names(_convert_date_columns(dividends_df))
+                dividends_sorted = _sort_by_date_time(dividends_df)
+                dividends_converted = _format_column_names(_convert_date_columns(dividends_sorted))
                 dividends_converted.to_excel(writer, sheet_name="Dividends", index=False)
                 _format_sheet(writer, "Dividends", dividends_converted)
 
             if not tax_df.empty:
-                tax_converted = _format_column_names(_convert_date_columns(tax_df))
+                tax_sorted = _sort_by_date_time(tax_df)
+                tax_converted = _format_column_names(_convert_date_columns(tax_sorted))
                 tax_converted.to_excel(writer, sheet_name="Withholding Tax", index=False)
                 _format_sheet(writer, "Withholding Tax", tax_converted)
 
             if not deposits_withdrawals_df.empty:
-                dw_converted = _format_column_names(_convert_date_columns(deposits_withdrawals_df))
+                dw_sorted = _sort_by_date_time(deposits_withdrawals_df)
+                dw_converted = _format_column_names(_convert_date_columns(dw_sorted))
                 dw_converted.to_excel(writer, sheet_name="Deposits & Withdrawals", index=False)
                 _format_sheet(writer, "Deposits & Withdrawals", dw_converted)
 
@@ -96,6 +100,28 @@ def export_to_excel(
             _merge_summary_categories(writer, "Summary", summary_df)
     except Exception as e:
         raise IOError(f"Failed to export Excel file: {e}") from e
+
+
+def _sort_by_date_time(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Sort DataFrame by Date and Time columns
+
+    Args:
+        df: DataFrame with Date and optionally Time columns
+
+    Returns:
+        Sorted DataFrame
+    """
+    df_copy = df.copy()
+
+    if "Date" not in df_copy.columns:
+        return df_copy
+
+    sort_columns = ["Date"]
+    if "Time" in df_copy.columns:
+        sort_columns.append("Time")
+
+    return df_copy.sort_values(by=sort_columns).reset_index(drop=True)
 
 
 def _convert_date_columns(df: pd.DataFrame) -> pd.DataFrame:
