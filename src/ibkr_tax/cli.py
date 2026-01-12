@@ -16,9 +16,12 @@ from .config import Config
 from .constants import TIMESTAMP_FORMAT
 from .exceptions import APIError, ConfigurationError, IBKRTaxError
 from .parsers.data_parser import (
+    calculate_performance,
     calculate_summary,
+    parse_cash_report,
     parse_deposits_withdrawals,
     parse_dividends,
+    parse_open_positions,
     parse_trades,
     parse_withholding_tax,
 )
@@ -38,7 +41,9 @@ def export_to_excel(
     dividends_df: pd.DataFrame,
     tax_df: pd.DataFrame,
     deposits_withdrawals_df: pd.DataFrame,
+    open_positions_df: pd.DataFrame,
     summary: Dict[str, Any],
+    performance: Dict[str, Any],
     filepath: str,
 ) -> None:
     """
@@ -49,7 +54,9 @@ def export_to_excel(
         dividends_df: DataFrame with dividend data
         tax_df: DataFrame with tax data
         deposits_withdrawals_df: DataFrame with deposits/withdrawals data
+        open_positions_df: DataFrame with open positions data
         summary: Summary dictionary
+        performance: Performance metrics dictionary
         filepath: Output file path
 
     Raises:
@@ -81,6 +88,31 @@ def export_to_excel(
                 dw_converted = _format_column_names(_convert_date_columns(dw_sorted))
                 dw_converted.to_excel(writer, sheet_name="Deposits & Withdrawals", index=False)
                 _format_sheet(writer, "Deposits & Withdrawals", dw_converted)
+
+            if not open_positions_df.empty:
+                positions_sorted = _sort_by_date_time(open_positions_df)
+                positions_converted = _format_column_names(_convert_date_columns(positions_sorted))
+                positions_converted.to_excel(writer, sheet_name="Open Positions", index=False)
+                _format_sheet(writer, "Open Positions", positions_converted)
+
+            # Write performance sheet
+            if performance:
+                performance_data = []
+                for category, values in performance.items():
+                    for metric, value in values.items():
+                        performance_data.append(
+                            {
+                                "Category": category.replace("_", " "),
+                                "Metric": metric.replace("_", " "),
+                                "Value": value,
+                            }
+                        )
+
+                if performance_data:
+                    performance_df = pd.DataFrame(performance_data)
+                    performance_df.to_excel(writer, sheet_name="Performance", index=False)
+                    _format_sheet(writer, "Performance", performance_df)
+                    _merge_summary_categories(writer, "Performance", performance_df)
 
             # Write summary sheet
             summary_data = []
@@ -439,12 +471,13 @@ def _merge_summary_categories(writer: pd.ExcelWriter, sheet_name: str, df: pd.Da
             worksheet[f"A{start_row}"].alignment = Alignment(horizontal="center", vertical="center")
 
 
-def print_summary(summary: Dict[str, Any]) -> None:
+def print_summary(summary: Dict[str, Any], performance: Dict[str, Any] = None) -> None:
     """
-    Print summary to console
+    Print summary to console including performance metrics
 
     Args:
         summary: Summary dictionary
+        performance: Performance metrics dictionary (optional)
     """
     print("\n" + "=" * 60)
     print("SUMMARY")
@@ -459,6 +492,22 @@ def print_summary(summary: Dict[str, Any]) -> None:
                 print(f"  {metric_name:<35} {value:>15,.2f}")
             else:
                 print(f"  {metric_name:<35} {value:>15}")
+
+    # Print performance metrics if available
+    if performance:
+        print("\n" + "=" * 60)
+        print("INVESTMENT PERFORMANCE")
+        print("=" * 60)
+
+        for category, values in performance.items():
+            print(f"\n{category}:")
+            print("-" * 40)
+            for metric, value in values.items():
+                metric_name = metric.replace("_", " ")
+                if isinstance(value, (int, float)):
+                    print(f"  {metric_name:<35} {value:>15,.2f}")
+                else:
+                    print(f"  {metric_name:<35} {value:>15}")
 
 
 def convert_to_native(obj: Any) -> Any:
@@ -483,7 +532,7 @@ def convert_to_native(obj: Any) -> Any:
 
 def process_accounts(
     data: Any, logger: Any
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, Dict[str, float]]:
     """
     Process single or multiple accounts data
 
@@ -492,7 +541,8 @@ def process_accounts(
         logger: Logger instance
 
     Returns:
-        Tuple of (trades_df, dividends_df, tax_df, deposits_withdrawals_df)
+        Tuple of (trades_df, dividends_df, tax_df, deposits_withdrawals_df,
+                  open_positions_df, cash_report)
     """
     if isinstance(data, list):
         logger.info(f"Processing {len(data)} account(s)...")
@@ -500,6 +550,8 @@ def process_accounts(
         all_dividends: List[pd.DataFrame] = []
         all_taxes: List[pd.DataFrame] = []
         all_deposits_withdrawals: List[pd.DataFrame] = []
+        all_open_positions: List[pd.DataFrame] = []
+        all_cash_reports: List[Dict[str, float]] = []
 
         for idx, account_data in enumerate(data):
             account_id = account_data.get("@accountId", f"Account_{idx + 1}")
@@ -509,6 +561,8 @@ def process_accounts(
             dividends = parse_dividends(account_data)
             taxes = parse_withholding_tax(account_data)
             deposits_withdrawals = parse_deposits_withdrawals(account_data)
+            open_positions = parse_open_positions(account_data)
+            cash_report = parse_cash_report(account_data)
 
             if not trades.empty:
                 trades["Account"] = account_id
@@ -522,6 +576,11 @@ def process_accounts(
             if not deposits_withdrawals.empty:
                 deposits_withdrawals["Account"] = account_id
                 all_deposits_withdrawals.append(deposits_withdrawals)
+            if not open_positions.empty:
+                open_positions["Account"] = account_id
+                all_open_positions.append(open_positions)
+            if cash_report:
+                all_cash_reports.append(cash_report)
 
         # Merge all accounts
         trades_df = pd.concat(all_trades, ignore_index=True) if all_trades else pd.DataFrame()
@@ -534,11 +593,20 @@ def process_accounts(
             if all_deposits_withdrawals
             else pd.DataFrame()
         )
+        open_positions_df = (
+            pd.concat(all_open_positions, ignore_index=True)
+            if all_open_positions
+            else pd.DataFrame()
+        )
+
+        # Use first cash report or merge if needed
+        cash_report = all_cash_reports[0] if all_cash_reports else {}
 
         logger.info(
             f"Total across all accounts: {len(trades_df)} trades, "
             f"{len(dividends_df)} dividends, {len(tax_df)} taxes, "
-            f"{len(deposits_withdrawals_df)} deposits/withdrawals"
+            f"{len(deposits_withdrawals_df)} deposits/withdrawals, "
+            f"{len(open_positions_df)} positions"
         )
     else:
         # Single account
@@ -547,8 +615,10 @@ def process_accounts(
         dividends_df = parse_dividends(data)
         tax_df = parse_withholding_tax(data)
         deposits_withdrawals_df = parse_deposits_withdrawals(data)
+        open_positions_df = parse_open_positions(data)
+        cash_report = parse_cash_report(data)
 
-    return trades_df, dividends_df, tax_df, deposits_withdrawals_df
+    return trades_df, dividends_df, tax_df, deposits_withdrawals_df, open_positions_df, cash_report
 
 
 def parse_args() -> argparse.Namespace:
@@ -748,9 +818,13 @@ def main() -> None:
             all_dividends = []
             all_taxes = []
             all_deposits_withdrawals = []
+            all_open_positions = []
+            all_cash_reports = []
 
             for year_data in data:
-                trades, dividends, taxes, deposits_withdrawals = process_accounts(year_data, logger)
+                trades, dividends, taxes, deposits_withdrawals, open_positions, cash_report = (
+                    process_accounts(year_data, logger)
+                )
                 if not trades.empty:
                     all_trades.append(trades)
                 if not dividends.empty:
@@ -759,6 +833,10 @@ def main() -> None:
                     all_taxes.append(taxes)
                 if not deposits_withdrawals.empty:
                     all_deposits_withdrawals.append(deposits_withdrawals)
+                if not open_positions.empty:
+                    all_open_positions.append(open_positions)
+                if cash_report:
+                    all_cash_reports.append(cash_report)
 
             trades_df = pd.concat(all_trades, ignore_index=True) if all_trades else pd.DataFrame()
             dividends_df = (
@@ -770,16 +848,29 @@ def main() -> None:
                 if all_deposits_withdrawals
                 else pd.DataFrame()
             )
+            open_positions_df = (
+                pd.concat(all_open_positions, ignore_index=True)
+                if all_open_positions
+                else pd.DataFrame()
+            )
+            # Use last year's cash report
+            cash_report = all_cash_reports[-1] if all_cash_reports else {}
 
             logger.info(
                 f"Combined data: {len(trades_df)} trades, "
                 f"{len(dividends_df)} dividends, {len(tax_df)} taxes, "
-                f"{len(deposits_withdrawals_df)} deposits/withdrawals"
+                f"{len(deposits_withdrawals_df)} deposits/withdrawals, "
+                f"{len(open_positions_df)} positions"
             )
         else:
-            trades_df, dividends_df, tax_df, deposits_withdrawals_df = process_accounts(
-                data, logger
-            )
+            (
+                trades_df,
+                dividends_df,
+                tax_df,
+                deposits_withdrawals_df,
+                open_positions_df,
+                cash_report,
+            ) = process_accounts(data, logger)
 
         # Step 5: Calculate summary
         logger.info("Step 5: Calculating summary...")
@@ -798,12 +889,32 @@ def main() -> None:
         )
         logger.info("Summary calculated successfully")
 
+        # Step 5.5: Calculate performance
+        logger.info("Step 5.5: Calculating investment performance...")
+        performance = calculate_performance(
+            trades_df,
+            dividends_df,
+            deposits_withdrawals_df,
+            open_positions_df,
+            cash_report,
+            use_dynamic_rates=config.use_dynamic_rates,
+            default_rate=config.exchange_rate,
+        )
+        logger.info("Performance calculated successfully")
+
         # Step 6: Export to Excel
         logger.info("Step 6: Exporting to Excel...")
         excel_file = output_dir / f"ibkr_report_{timestamp}.xlsx"
         try:
             export_to_excel(
-                trades_df, dividends_df, tax_df, deposits_withdrawals_df, summary, str(excel_file)
+                trades_df,
+                dividends_df,
+                tax_df,
+                deposits_withdrawals_df,
+                open_positions_df,
+                summary,
+                performance,
+                str(excel_file),
             )
             logger.info(f"Excel file saved: {excel_file}")
         except IOError as e:
@@ -820,7 +931,7 @@ def main() -> None:
             logger.error(f"Failed to save summary JSON: {e}")
 
         # Print summary to console
-        print_summary(summary)
+        print_summary(summary, performance)
 
         print("\n" + "=" * 60)
         print("✓ All tasks completed successfully!")

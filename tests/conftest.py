@@ -41,7 +41,7 @@ def sample_flex_data() -> Dict:
         "Trades": {
             "Lot": [
                 {
-                    "@tradeDate": "2025-01-01",
+                    "@tradeDate": "20250101",
                     "@symbol": "AAPL",
                     "@description": "APPLE INC",
                     "@quantity": "10",
@@ -58,7 +58,7 @@ def sample_flex_data() -> Dict:
         "CashTransactions": {
             "CashTransaction": [
                 {
-                    "@dateTime": "2025-01-02",
+                    "@dateTime": "20250102",
                     "@symbol": "AAPL",
                     "@description": "AAPL Dividend",
                     "@amount": "10.50",
@@ -66,7 +66,7 @@ def sample_flex_data() -> Dict:
                     "@type": "Dividends",
                 },
                 {
-                    "@dateTime": "2025-01-02",
+                    "@dateTime": "20250102",
                     "@symbol": "AAPL",
                     "@description": "AAPL Withholding Tax",
                     "@amount": "-1.50",
@@ -75,4 +75,60 @@ def sample_flex_data() -> Dict:
                 },
             ]
         },
+    }
+
+
+@pytest.fixture
+def sample_open_positions_data() -> Dict:
+    """Sample open positions data for testing"""
+    return {
+        "OpenPositions": {
+            "OpenPosition": [
+                {
+                    "@positionCode": "AAPL",
+                    "@symbol": "AAPL",
+                    "@description": "APPLE INC",
+                    "@quantity": "100",
+                    "@markPrice": "150.0",
+                    "@positionValue": "15000.0",
+                    "@fxPnl": "1000.0",
+                    "@costBasisMoney": "14000.0",
+                    "@currency": "USD",
+                    "@assetCategory": "STK",
+                },
+                {
+                    "@positionCode": "TSLA",
+                    "@symbol": "TSLA",
+                    "@description": "TESLA INC",
+                    "@quantity": "50",
+                    "@markPrice": "200.0",
+                    "@positionValue": "10000.0",
+                    "@fxPnl": "-500.0",
+                    "@costBasisMoney": "10500.0",
+                    "@currency": "USD",
+                    "@assetCategory": "STK",
+                },
+            ]
+        }
+    }
+
+
+@pytest.fixture
+def sample_cash_report_data() -> Dict:
+    """Sample cash report data"""
+    return {
+        "CashReport": {
+            "CashReportCurrency": {
+                "@currency": "BASE_SUMMARY",
+                "@startingCash": "10000.0",
+                "@endingCash": "12000.0",
+                "@depositWithdrawals": "2000.0",
+                "@deposits": "3000.0",
+                "@withdrawals": "-1000.0",
+                "@dividends": "50.0",
+                "@commissions": "-1.5",
+                "@netTradesSales": "500.0",
+                "@netTradesPurchases": "-300.0",
+            }
+        }
     }

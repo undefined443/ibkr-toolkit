@@ -19,6 +19,10 @@ EXCHANGE_RATE_CACHE_DAYS = 1
 # Tax Configuration
 CHINA_DIVIDEND_TAX_RATE = 0.20  # 20% tax rate for dividends in China
 
+# Performance Calculation Configuration
+DEFAULT_BEGINNING_POSITIONS_VALUE = 0.0  # If no historical data available
+MIN_INVESTMENT_PERIOD_DAYS = 1  # Minimum days to calculate annualized return
+
 # Output Configuration
 DEFAULT_OUTPUT_DIR = "./data/output"
 DEFAULT_CACHE_DIR = "./data/cache"

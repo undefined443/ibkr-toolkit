@@ -162,11 +162,14 @@ def test_export_to_excel_success(mock_merge, mock_format, tmp_path):
     )
 
     deposits_withdrawals_df = pd.DataFrame()
+    open_positions_df = pd.DataFrame()
 
     summary = {
         "Trading": {"Total_PnL": 100.0},
         "Dividends": {"Total_Dividends": 10.0},
     }
+
+    performance = {}
 
     filepath = tmp_path / "test_output.xlsx"
 
@@ -175,7 +178,9 @@ def test_export_to_excel_success(mock_merge, mock_format, tmp_path):
         dividends_df,
         tax_df,
         deposits_withdrawals_df,
+        open_positions_df,
         summary,
+        performance,
         str(filepath),
     )
 
@@ -190,8 +195,10 @@ def test_export_to_excel_empty_dataframes(mock_merge, mock_format, tmp_path):
     dividends_df = pd.DataFrame()
     tax_df = pd.DataFrame()
     deposits_withdrawals_df = pd.DataFrame()
+    open_positions_df = pd.DataFrame()
 
     summary = {}
+    performance = {}
 
     filepath = tmp_path / "test_output.xlsx"
 
@@ -200,7 +207,9 @@ def test_export_to_excel_empty_dataframes(mock_merge, mock_format, tmp_path):
         dividends_df,
         tax_df,
         deposits_withdrawals_df,
+        open_positions_df,
         summary,
+        performance,
         str(filepath),
     )
 
@@ -216,7 +225,9 @@ def test_export_to_excel_io_error(mock_writer):
     dividends_df = pd.DataFrame()
     tax_df = pd.DataFrame()
     deposits_withdrawals_df = pd.DataFrame()
+    open_positions_df = pd.DataFrame()
     summary = {}
+    performance = {}
 
     with pytest.raises(IOError, match="Failed to export Excel file"):
         export_to_excel(
@@ -224,6 +235,8 @@ def test_export_to_excel_io_error(mock_writer):
             dividends_df,
             tax_df,
             deposits_withdrawals_df,
+            open_positions_df,
             summary,
+            performance,
             "test_output.xlsx",
         )

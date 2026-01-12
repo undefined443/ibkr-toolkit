@@ -22,6 +22,7 @@
 - ✅ 生成 Excel 报表和 JSON 数据
 - ✅ 自动计算应纳税额和可抵免税额
 - ✅ 支持多账户合并
+- ✅ **投资表现分析**：计算总收益率、年化收益率、最大回撤、已实现 ROI
 
 ## 快速开始
 
@@ -132,6 +133,19 @@ uv run ibkr-tax --help
 3. **Withholding Tax** (预扣税)
    - 包含字段：Date, Amount, Currency
    - 用于计算外国税额抵免
+
+#### 投资表现分析所需数据类型（可选）
+
+如需使用投资表现分析功能，需要额外添加以下数据类型：
+
+4. **Open Positions** (持仓数据)
+   - 包含字段：Symbol, Quantity, Mark Price, Position Value, Cost Basis, FX P&L, Currency, Asset Category
+   - 用于计算期末净值、未实现盈亏等
+
+5. **Cash Report** (现金报告)
+   - 选择 Base Currency Summary
+   - 包含字段：Starting Cash, Ending Cash, Deposits, Withdrawals, Deposit/Withdrawals
+   - 用于计算期初期末净值、净存入额等
 
 #### 日期范围设置
 
@@ -365,7 +379,7 @@ CHINA_DIVIDEND_TAX_RATE = 0.20  # 20% tax rate
 
 **文件名格式**：`ibkr_report_YYYYMMDD_HHMMSS.xlsx`
 
-包含 5 个工作表：
+包含 7 个工作表：
 
 #### Sheet 1: Trades（交易明细）
 
@@ -443,6 +457,63 @@ CHINA_DIVIDEND_TAX_RATE = 0.20  # 20% tax rate
   - Tax_Due_20pct_CNY: 应纳税额（20%）
   - Foreign_Tax_Credit_CNY: 可抵免税额
   - Tax_Payable_CNY: 应补税额
+
+- Account_Summary: 账户汇总（如有存取款）
+  - Total_Deposits_Count: 存款笔数
+  - Total_Withdrawals_Count: 取款笔数
+  - Total_Deposits_Base_Currency: 存款总额
+  - Total_Withdrawals_Base_Currency: 取款总额
+  - Net_Deposits_Base_Currency: 净存入额
+
+#### Sheet 6: Open Positions（持仓明细）
+
+- Symbol: 股票代码
+- Description: 证券名称
+- Quantity: 持仓数量
+- Mark Price: 市场价格
+- Position Value: 持仓市值
+- Cost Basis: 成本基础
+- Unrealized P&L: 未实现盈亏
+- Currency: 货币
+- Asset Category: 资产类别
+- Account: 账户
+
+#### Sheet 7: Performance（投资表现）
+
+包含以下指标：
+
+**Performance_Summary（投资表现汇总）**：
+
+- Beginning_Net_Worth_USD/CNY: 期初净值（美元/人民币）
+- Ending_Net_Worth_USD/CNY: 期末净值（美元/人民币）
+- Net_Deposits_USD/CNY: 净存入额（美元/人民币）
+- Total_Return_Percent: 总收益率（%）
+- Annualized_Return_Percent: 年化收益率（%）
+- Max_Drawdown_Percent: 最大回撤（%）
+- Realized_ROI_Percent: 已实现投资回报率（%）
+- Investment_Period_Days: 投资天数
+- Avg_Exchange_Rate: 平均汇率
+
+**Position_Details（持仓详情）**（如有持仓）：
+
+- Total_Positions: 持仓数量
+- Total_Position_Value_USD/CNY: 持仓总市值（美元/人民币）
+- Total_Cost_Basis_USD: 总成本基础
+- Total_Unrealized_P&L_USD/CNY: 总未实现盈亏（美元/人民币）
+
+**投资表现指标说明**：
+
+- **总收益率**：`(期末净值 - 期初净值 - 净存入) / 期初净值 × 100%`
+  - 衡量投资的整体增长情况，已剔除存取款影响
+
+- **年化收益率**：`(1 + 总收益率)^(365/投资天数) - 1`
+  - 将总收益率转换为年度百分比，便于比较不同投资期的表现
+
+- **最大回撤**：`(峰值 - 谷底) / 峰值 × 100%`
+  - 衡量投资期间从最高点到最低点的最大损失幅度
+
+- **已实现 ROI**：`已实现盈亏 / 投资成本 × 100%`
+  - 仅基于已平仓交易计算的回报率，不包括未实现盈亏
 
 ### 2. 原始数据
 
