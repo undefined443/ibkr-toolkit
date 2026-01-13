@@ -335,6 +335,102 @@ def place_trailing_stop_orders(
         client.disconnect()
 
 
+def place_trailing_stop_buy_orders(
+    config: Config,
+    account: str,
+    trailing_percent: float,
+    symbols: List[str],
+    logger: Optional[any] = None,
+) -> None:
+    """
+    Place trailing stop BUY orders in IB system for specific symbols
+
+    Args:
+        config: Configuration object
+        account: Account ID to place orders for
+        trailing_percent: Trailing stop percentage
+        symbols: List of symbols to place buy orders for (required)
+        logger: Logger instance
+    """
+    if logger is None:
+        logger = setup_logger("stop_loss", level="INFO", console=True)
+
+    from .api.trading_client import TradingClient
+
+    logger.info("Connecting to IBKR Gateway...")
+
+    # Connect to IB Gateway
+    client = TradingClient(
+        host=config.ibkr_gateway_host,
+        port=config.ibkr_gateway_port,
+        client_id=config.ibkr_client_id,
+    )
+
+    try:
+        client.connect()
+
+        print(f"\n{'=' * 80}")
+        print(f"Placing trailing stop BUY orders for account {account}")
+        print(f"Trailing stop percentage: {trailing_percent}%")
+        print(f"Symbols: {', '.join(symbols)}")
+        print(f"{'=' * 80}\n")
+
+        # Place buy orders for each symbol with fixed quantity
+        results = []
+        for symbol in symbols:
+            try:
+                # Use a default quantity of 1 for buy orders
+                # User can modify the order in TWS/IB Gateway if needed
+                result = client.place_trailing_stop_order(
+                    symbol=symbol,
+                    quantity=1,
+                    trailing_percent=trailing_percent,
+                    action="BUY",
+                    account=account,
+                )
+                results.append(result)
+            except Exception as e:
+                logger.error(f"Failed to place order for {symbol}: {e}")
+                results.append({"symbol": symbol, "error": str(e), "status": "failed"})
+
+        if not results:
+            print("No orders placed")
+            return
+
+        # Display results
+        print(f"\n{'=' * 80}")
+        print("Order Placement Results:")
+        print(f"{'=' * 80}\n")
+
+        success_count = 0
+        failed_count = 0
+
+        for result in results:
+            symbol = result.get("symbol")
+            if "orderId" in result:
+                print(
+                    f"  {symbol:6s}: Order ID {result['orderId']:4d}, "
+                    f"{result['quantity']:2.0f} shares, "
+                    f"{result['trailing_percent']:.1f}% trail BUY, "
+                    f"Status: {result['status']}"
+                )
+                success_count += 1
+            else:
+                print(f"  {symbol:6s}: {result.get('error', 'Unknown error')}")
+                failed_count += 1
+
+        print(f"\n{'=' * 80}")
+        print(f"Success: {success_count} | Failed: {failed_count}")
+        print(f"{'=' * 80}\n")
+
+        print("Note: These are BUY orders with quantity=1 (default).")
+        print("You can modify quantity in TWS/IB Gateway after placement.")
+        print("Orders will execute when price rises by the trailing percentage.")
+
+    finally:
+        client.disconnect()
+
+
 def view_open_orders(
     config: Config,
     account: Optional[str] = None,
@@ -617,6 +713,24 @@ Note:
         help="Specific symbols (if not specified, all positions in account)",
     )
 
+    # Place-buy command - place trailing stop BUY orders
+    place_buy_parser = subparsers.add_parser(
+        "place-buy", help="Place trailing stop BUY orders for specific symbols"
+    )
+    place_buy_parser.add_argument("account", help="Account ID (e.g., U13900978)")
+    place_buy_parser.add_argument(
+        "--percent",
+        type=float,
+        required=True,
+        help="Trailing stop percentage (e.g., 5.0 triggers on 5%% price rise)",
+    )
+    place_buy_parser.add_argument(
+        "--symbols",
+        nargs="+",
+        required=True,
+        help="Symbols to place buy orders for (required)",
+    )
+
     # Orders command - view open orders
     orders_parser = subparsers.add_parser("orders", help="View active orders")
     orders_parser.add_argument("--account", help="Filter by account (optional)")
@@ -690,6 +804,14 @@ def main() -> None:
                 account=args.account,
                 trailing_percent=args.percent,
                 symbols=[s.upper() for s in args.symbols] if args.symbols else None,
+                logger=logger,
+            )
+        elif args.command == "place-buy":
+            place_trailing_stop_buy_orders(
+                config=config,
+                account=args.account,
+                trailing_percent=args.percent,
+                symbols=[s.upper() for s in args.symbols],
                 logger=logger,
             )
         elif args.command == "orders":

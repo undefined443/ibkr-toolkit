@@ -315,6 +315,7 @@ class TradingClient:
         symbol: str,
         quantity: int,
         trailing_percent: float,
+        action: str = "SELL",
         account: Optional[str] = None,
         exchange: str = "SMART",
     ) -> dict:
@@ -323,8 +324,9 @@ class TradingClient:
 
         Args:
             symbol: Stock symbol
-            quantity: Number of shares to sell (positive number)
+            quantity: Number of shares (positive number)
             trailing_percent: Trailing stop percentage (e.g., 5.0 for 5%)
+            action: Order action - "SELL" for trailing stop loss, "BUY" for trailing stop buy
             account: Account to place order for (optional)
             exchange: Exchange code (default: SMART)
 
@@ -335,6 +337,7 @@ class TradingClient:
                 'symbol': str,
                 'quantity': int,
                 'trailing_percent': float,
+                'action': str,
                 'status': str
             }
 
@@ -344,6 +347,10 @@ class TradingClient:
         if not self.is_connected():
             raise APIError("Not connected to IBKR Gateway")
 
+        # Validate action
+        if action not in ("SELL", "BUY"):
+            raise APIError(f"Invalid action: {action}. Must be 'SELL' or 'BUY'")
+
         try:
             from ib_async import Order
 
@@ -352,7 +359,7 @@ class TradingClient:
 
             # Create trailing stop order
             order = Order()
-            order.action = "SELL"
+            order.action = action
             order.orderType = "TRAIL"
             order.totalQuantity = quantity
             order.trailingPercent = trailing_percent
@@ -370,7 +377,7 @@ class TradingClient:
             status = trade.orderStatus.status
 
             logger.info(
-                f"Trailing stop order placed: {symbol} {quantity} shares @ "
+                f"Trailing stop {action} order placed: {symbol} {quantity} shares @ "
                 f"{trailing_percent}% (Order ID: {order_id}, Status: {status})"
             )
 
@@ -379,6 +386,7 @@ class TradingClient:
                 "symbol": symbol,
                 "quantity": quantity,
                 "trailing_percent": trailing_percent,
+                "action": action,
                 "status": status,
             }
 
@@ -437,7 +445,11 @@ class TradingClient:
             raise APIError(f"Failed to get orders: {e}")
 
     def place_trailing_stop_for_positions(
-        self, account: str, trailing_percent: float, symbols: Optional[List[str]] = None
+        self,
+        account: str,
+        trailing_percent: float,
+        symbols: Optional[List[str]] = None,
+        action: str = "SELL",
     ) -> List[dict]:
         """
         Place trailing stop orders for all positions in an account
@@ -446,6 +458,7 @@ class TradingClient:
             account: Account ID to place orders for
             trailing_percent: Trailing stop percentage
             symbols: Optional list of symbols to filter (if None, all positions)
+            action: Order action - "SELL" for trailing stop loss, "BUY" for trailing stop buy
 
         Returns:
             List of order result dictionaries
@@ -483,6 +496,7 @@ class TradingClient:
                         symbol=symbol,
                         quantity=quantity,
                         trailing_percent=trailing_percent,
+                        action=action,
                         account=account,
                     )
                     results.append(result)

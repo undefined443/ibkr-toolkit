@@ -114,6 +114,24 @@ def create_parser() -> argparse.ArgumentParser:
         help="Specific symbols to place orders for (if not specified, all positions)",
     )
 
+    # Place-buy command - place trailing stop BUY orders
+    place_buy_parser = stop_loss_subparsers.add_parser(
+        "place-buy", help="Place trailing stop BUY orders for specific symbols"
+    )
+    place_buy_parser.add_argument("account", help="Account ID (e.g., U13900978)")
+    place_buy_parser.add_argument(
+        "--percent",
+        type=float,
+        required=True,
+        help="Trailing stop percentage (e.g., 5.0 for 5%%)",
+    )
+    place_buy_parser.add_argument(
+        "--symbols",
+        nargs="+",
+        required=True,
+        help="Symbols to place buy orders for (required)",
+    )
+
     # Orders command - view open orders
     orders_parser = stop_loss_subparsers.add_parser("orders", help="View open orders")
     orders_parser.add_argument("--account", help="Filter by account ID (optional)")
@@ -172,6 +190,9 @@ def main() -> None:
             sys.argv.extend([args.account, "--percent", str(args.percent)])
             if args.symbols:
                 sys.argv.extend(["--symbols"] + args.symbols)
+        elif args.stop_loss_command == "place-buy":
+            sys.argv.extend([args.account, "--percent", str(args.percent)])
+            sys.argv.extend(["--symbols"] + args.symbols)
         elif args.stop_loss_command == "orders":
             if hasattr(args, "account") and args.account:
                 sys.argv.extend(["--account", args.account])
