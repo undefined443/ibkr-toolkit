@@ -31,11 +31,11 @@ def print_results(results: list) -> None:
         results: List of check results from StopLossChecker
     """
     if not results:
-        print("\n没有持仓需要检查")
+        print("\nNo positions to check")
         return
 
     print("\n" + "=" * 80)
-    print("止损检查结果")
+    print("Stop Loss Check Results")
     print("=" * 80)
 
     # Print summary
@@ -43,18 +43,18 @@ def print_results(results: list) -> None:
     total_positions = len(results)
     total_unrealized_pnl = sum(r["unrealized_pnl"] for r in results)
 
-    print(f"\n总持仓数: {total_positions}")
-    print(f"触发止损: {triggered_count} 个")
-    print(f"总未实现盈亏: ${total_unrealized_pnl:+,.2f}")
+    print(f"\nTotal positions: {total_positions}")
+    print(f"Stop loss triggered: {triggered_count}")
+    print(f"Total unrealized P&L: ${total_unrealized_pnl:+,.2f}")
 
     # Print triggered positions
     if triggered_count > 0:
         print("\n" + "=" * 80)
-        print("🚨 触发止损的持仓:")
+        print("TRIGGERED Positions:")
         print("=" * 80)
         print(
-            f"{'代码':<10} {'数量':>8} {'成本价':>10} {'当前价':>10} "
-            f"{'止损价':>10} {'未实现盈亏':>12} {'操作'}"
+            f"{'Symbol':<10} {'Qty':>8} {'Avg Cost':>10} {'Current':>10} "
+            f"{'Stop':>10} {'Unreal P&L':>12} {'Action'}"
         )
         print("-" * 80)
 
@@ -64,20 +64,20 @@ def print_results(results: list) -> None:
                     f"{r['symbol']:<10} {r['quantity']:>8} "
                     f"${r['avg_cost']:>9.2f} ${r['current_price']:>9.2f} "
                     f"${r['stop_price']:>9.2f} ${r['unrealized_pnl']:>+11.2f} "
-                    f"{r.get('action_taken', '建议手动下单')}"
+                    f"{r.get('action_taken', 'Manual order suggested')}"
                 )
 
     # Print all positions
     print("\n" + "=" * 80)
-    print("📊 所有持仓:")
+    print("All Positions:")
     print("=" * 80)
     print(
-        f"{'代码':<10} {'当前价':>10} {'止损价':>10} {'未实现盈亏':>12} {'盈亏比例':>10} {'状态'}"
+        f"{'Symbol':<10} {'Current':>10} {'Stop':>10} {'Unreal P&L':>12} {'P&L %':>10} {'Status'}"
     )
     print("-" * 80)
 
     for r in results:
-        status = "🚨 触发" if r["triggered"] else "✅ 正常"
+        status = "TRIGGERED" if r["triggered"] else "OK"
         print(
             f"{r['symbol']:<10} ${r['current_price']:>9.2f} "
             f"${r['stop_price']:>9.2f} ${r['unrealized_pnl']:>+11.2f} "
@@ -104,7 +104,7 @@ def check_stop_loss(
         logger = setup_logger("stop_loss", level="INFO", console=True)
 
     # Initialize trading client
-    logger.info("正在连接到 IBKR Gateway...")
+    logger.info("Connecting to IBKR Gateway...")
     trading_client = TradingClient(
         host=config.ibkr_gateway_host,
         port=config.ibkr_gateway_port,
@@ -126,7 +126,7 @@ def check_stop_loss(
         )
 
         # Check positions
-        logger.info("开始检查持仓止损条件...")
+        logger.info("Checking stop-loss conditions for positions...")
         results = checker.check_positions(auto_execute=auto_execute)
 
         # Print results
@@ -134,7 +134,7 @@ def check_stop_loss(
 
         # Send email notification if configured
         if send_email and any(r["triggered"] for r in results):
-            logger.info("正在发送邮件通知...")
+            logger.info("Sending email notification...")
             try:
                 # Check if email is configured
                 if not all(
@@ -147,7 +147,7 @@ def check_stop_loss(
                         config.email_to,
                     ]
                 ):
-                    logger.warning("邮件配置不完整，跳过发送通知")
+                    logger.warning("Email configuration incomplete, skipping notification")
                 else:
                     notifier = EmailNotifier(
                         smtp_host=config.smtp_host,
@@ -160,7 +160,7 @@ def check_stop_loss(
                     )
                     notifier.send_stop_loss_alert(results)
             except ConfigurationError as e:
-                logger.warning(f"邮件通知失败: {e}")
+                logger.warning(f"Email notification failed: {e}")
 
     finally:
         trading_client.disconnect()
@@ -182,7 +182,7 @@ def set_trailing_stop(
         logger = setup_logger("stop_loss", level="INFO", console=True)
 
     # Initialize trading client
-    logger.info("正在连接到 IBKR Gateway...")
+    logger.info("Connecting to IBKR Gateway...")
     trading_client = TradingClient(
         host=config.ibkr_gateway_host,
         port=config.ibkr_gateway_port,
@@ -197,20 +197,20 @@ def set_trailing_stop(
         trading_client.connect()
 
         # Get current price
-        logger.info(f"获取 {symbol} 当前价格...")
+        logger.info(f"Getting current price for {symbol}...")
         current_price = trading_client.get_market_price(symbol)
 
         if current_price is None:
-            logger.error(f"无法获取 {symbol} 的价格")
+            logger.error(f"Unable to get price for {symbol}")
             return
 
         # Set trailing stop
         config_obj = stop_loss_manager.set_trailing_stop(symbol, current_price, trailing_percent)
 
-        print(f"\n✓ 已为 {symbol} 设置移动止损:")
-        print(f"  当前价格: ${current_price:.2f}")
-        print(f"  止损百分比: {trailing_percent}%")
-        print(f"  止损价格: ${config_obj.stop_price:.2f}")
+        print(f"\nTrailing stop set for {symbol}:")
+        print(f"  Current price: ${current_price:.2f}")
+        print(f"  Stop percentage: {trailing_percent}%")
+        print(f"  Stop price: ${config_obj.stop_price:.2f}")
         print()
 
     finally:
@@ -233,13 +233,13 @@ def list_stop_loss_configs(logger: Optional[any] = None) -> None:
     configs = stop_loss_manager.get_all_configs()
 
     if not configs:
-        print("\n未设置任何止损配置")
+        print("\nNo stop-loss configurations set")
         return
 
     print("\n" + "=" * 80)
-    print("当前止损配置:")
+    print("Current Stop-Loss Configurations:")
     print("=" * 80)
-    print(f"{'代码':<10} {'峰值价格':>12} {'止损价格':>12} {'止损百分比':>12} {'最后更新'}")
+    print(f"{'Symbol':<10} {'Peak Price':>12} {'Stop Price':>12} {'Stop %':>12} {'Last Updated'}")
     print("-" * 80)
 
     for symbol, config in configs.items():
@@ -285,10 +285,10 @@ def place_trailing_stop_orders(
         client.connect()
 
         print(f"\n{'=' * 80}")
-        print(f"为账户 {account} 下追踪止损单")
-        print(f"止损百分比: {trailing_percent}%")
+        print(f"Placing trailing stop orders for account {account}")
+        print(f"Trailing stop percentage: {trailing_percent}%")
         if symbols:
-            print(f"指定股票: {', '.join(symbols)}")
+            print(f"Symbols: {', '.join(symbols)}")
         print(f"{'=' * 80}\n")
 
         # Place orders
@@ -299,12 +299,12 @@ def place_trailing_stop_orders(
         )
 
         if not results:
-            print("未找到需要下单的持仓")
+            print("No positions found for order placement")
             return
 
         # Display results
         print(f"\n{'=' * 80}")
-        print("下单结果:")
+        print("Order Placement Results:")
         print(f"{'=' * 80}\n")
 
         success_count = 0
@@ -314,22 +314,22 @@ def place_trailing_stop_orders(
             symbol = result.get("symbol")
             if "orderId" in result:
                 print(
-                    f"✓ {symbol:6s}: 订单ID {result['orderId']:4d}, "
-                    f"{result['quantity']:2.0f}股, "
-                    f"止损{result['trailing_percent']:.1f}%, "
-                    f"状态: {result['status']}"
+                    f"  {symbol:6s}: Order ID {result['orderId']:4d}, "
+                    f"{result['quantity']:2.0f} shares, "
+                    f"{result['trailing_percent']:.1f}% trail, "
+                    f"Status: {result['status']}"
                 )
                 success_count += 1
             else:
-                print(f"✗ {symbol:6s}: {result.get('error', '未知错误')}")
+                print(f"  {symbol:6s}: {result.get('error', 'Unknown error')}")
                 failed_count += 1
 
         print(f"\n{'=' * 80}")
-        print(f"成功: {success_count} 个 | 失败: {failed_count} 个")
+        print(f"Success: {success_count} | Failed: {failed_count}")
         print(f"{'=' * 80}\n")
 
-        print("提示: 这些订单已提交到IB系统，会自动监控和执行。")
-        print("你可以在TWS/IB Gateway中查看和管理这些订单。")
+        print("Note: Orders submitted to IB system will be monitored and executed automatically.")
+        print("You can view and manage these orders in TWS/IB Gateway.")
 
     finally:
         client.disconnect()
@@ -367,16 +367,16 @@ def view_open_orders(
 
         print(f"\n{'=' * 80}")
         if account:
-            print(f"账户 {account} 的活跃订单:")
+            print(f"Active Orders for Account {account}:")
         else:
-            print("所有账户的活跃订单:")
+            print("Active Orders for All Accounts:")
         print(f"{'=' * 80}\n")
 
         # Get open orders
         orders = client.get_open_orders(account=account)
 
         if not orders:
-            print("未找到活跃订单")
+            print("No active orders found")
             return
 
         # Group by account
@@ -389,11 +389,11 @@ def view_open_orders(
 
         # Display orders
         for acc, order_list in sorted(accounts.items()):
-            print(f"\n账户: {acc}")
+            print(f"\nAccount: {acc}")
             print("-" * 80)
             print(
-                f"{'订单ID':<8} {'股票':<8} {'动作':<6} {'数量':<6} "
-                f"{'类型':<8} {'止损%/价格':<12} {'状态':<15}"
+                f"{'OrderID':<8} {'Symbol':<8} {'Action':<6} {'Qty':<6} "
+                f"{'Type':<8} {'Trail%/Price':<12} {'Status':<15}"
             )
             print("-" * 80)
 
@@ -418,7 +418,124 @@ def view_open_orders(
                     f"{order_type:<8} {type_info:<12} {status:<15}"
                 )
 
-        print(f"\n共 {len(orders)} 个活跃订单")
+        print(f"\nTotal: {len(orders)} active orders")
+
+    finally:
+        client.disconnect()
+
+
+def cancel_trailing_stop_orders(
+    config: Config,
+    order_ids: Optional[List[int]] = None,
+    account: Optional[str] = None,
+    symbols: Optional[List[str]] = None,
+    logger: Optional[any] = None,
+) -> None:
+    """
+    Cancel trailing stop orders
+
+    Args:
+        config: Configuration object
+        order_ids: Optional list of order IDs to cancel
+        account: Optional account filter
+        symbols: Optional symbols filter (requires account)
+        logger: Logger instance
+    """
+    if logger is None:
+        logger = setup_logger("stop_loss", level="INFO", console=True)
+
+    # Validate arguments
+    if not order_ids and not account:
+        print("\nError: Must specify order IDs or use --account parameter")
+        print("\nExamples:")
+        print("  # Cancel specific orders")
+        print("  ibkr-toolkit stop-loss cancel 15 12")
+        print("\n  # Cancel all orders for account")
+        print("  ibkr-toolkit stop-loss cancel --account U13900978")
+        print("\n  # Cancel orders for specific symbols in account")
+        print("  ibkr-toolkit stop-loss cancel --account U13900978 --symbols AAPL TSLA")
+        sys.exit(1)
+
+    if symbols and not account:
+        print("\nError: --symbols parameter requires --account")
+        sys.exit(1)
+
+    from .api.trading_client import TradingClient
+
+    logger.info("正在连接到 IBKR Gateway...")
+
+    # Connect to IB Gateway
+    client = TradingClient(
+        host=config.ibkr_gateway_host,
+        port=config.ibkr_gateway_port,
+        client_id=config.ibkr_client_id,
+    )
+
+    try:
+        client.connect()
+
+        print(f"\n{'=' * 80}")
+        print("Cancel Trailing Stop Orders")
+        print(f"{'=' * 80}\n")
+
+        if order_ids:
+            # Cancel specific order IDs
+            print(f"Cancelling order IDs: {', '.join(map(str, order_ids))}\n")
+
+            cancelled_count = 0
+            failed_count = 0
+
+            for order_id in order_ids:
+                try:
+                    client.cancel_order(order_id)
+                    print(f"  Order {order_id} cancelled")
+                    cancelled_count += 1
+                except Exception as e:
+                    print(f"  Order {order_id} cancellation failed: {e}")
+                    failed_count += 1
+
+            print(f"\n{'=' * 80}")
+            print(f"Success: {cancelled_count} | Failed: {failed_count}")
+            print(f"{'=' * 80}")
+
+        else:
+            # Cancel by account and symbols
+            print(f"Account: {account}")
+            if symbols:
+                print(f"Symbols: {', '.join(symbols)}")
+            print()
+
+            results = client.cancel_orders_by_account(
+                account=account,
+                symbols=symbols,
+            )
+
+            if not results:
+                print("No orders found to cancel")
+                return
+
+            # Display results
+            print("Cancellation Results:\n")
+
+            cancelled_count = 0
+            failed_count = 0
+
+            for result in results:
+                order_id = result.get("orderId")
+                symbol = result.get("symbol")
+                status = result.get("status")
+
+                if status == "cancelled":
+                    print(f"  Order {order_id:4d} ({symbol:6s}) cancelled")
+                    cancelled_count += 1
+                else:
+                    error = result.get("error", "Unknown error")
+                    print(f"  Order {order_id:4d} ({symbol:6s}) cancellation failed: {error}")
+                    failed_count += 1
+
+            print(f"\n{'=' * 80}")
+            print(f"Success: {cancelled_count} | Failed: {failed_count}")
+            print(f"{'=' * 80}")
 
     finally:
         client.disconnect()
@@ -432,73 +549,92 @@ def parse_args() -> argparse.Namespace:
         Parsed arguments
     """
     parser = argparse.ArgumentParser(
-        description="IBKR Stop Loss Manager - 管理移动止损策略",
+        description="IBKR Stop Loss Manager - Manage trailing stop strategies",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-示例:
+Examples:
 
-  # 检查所有持仓的止损条件
+  # Check stop-loss conditions for all positions
   ibkr-stop-loss check
 
-  # 检查并自动执行止损订单
+  # Check and auto-execute stop-loss orders
   ibkr-stop-loss check --auto-execute
 
-  # 检查并发送邮件通知
+  # Check and send email notification
   ibkr-stop-loss check --email
 
-  # 为特定股票设置 5% 移动止损
+  # Set 5% trailing stop for specific stock
   ibkr-stop-loss set AAPL --percent 5.0
 
-  # 查看所有止损配置
+  # View all stop-loss configurations
   ibkr-stop-loss list
 
-注意:
-  - 使用前需要先启动 TWS 或 IB Gateway
-  - 默认端口: 7497 (TWS Paper), 4002 (IB Gateway Paper)
-  - 可以在 .env 文件中配置连接参数
+Note:
+  - TWS or IB Gateway must be running before use
+  - Default ports: 7497 (TWS Paper), 4002 (IB Gateway Paper)
+  - Connection parameters can be configured in .env file
         """,
     )
 
-    subparsers = parser.add_subparsers(dest="command", help="子命令")
+    subparsers = parser.add_subparsers(dest="command", help="Subcommands")
 
     # Check command
-    check_parser = subparsers.add_parser("check", help="检查持仓止损条件")
+    check_parser = subparsers.add_parser("check", help="Check stop-loss conditions for positions")
     check_parser.add_argument(
-        "--auto-execute", action="store_true", help="自动执行止损订单（谨慎使用）"
+        "--auto-execute",
+        action="store_true",
+        help="Auto-execute stop-loss orders (use with caution)",
     )
-    check_parser.add_argument("--email", action="store_true", help="发送邮件通知")
+    check_parser.add_argument("--email", action="store_true", help="Send email notification")
 
     # Set command
-    set_parser = subparsers.add_parser("set", help="设置移动止损")
-    set_parser.add_argument("symbol", help="股票代码 (如 AAPL)")
+    set_parser = subparsers.add_parser("set", help="Set trailing stop")
+    set_parser.add_argument("symbol", help="Stock symbol (e.g., AAPL)")
     set_parser.add_argument(
         "--percent",
         type=float,
         default=5.0,
-        help="止损百分比 (默认: 5.0，表示价格下跌5%%时触发)",
+        help="Stop percentage (default: 5.0, triggers on 5%% price drop)",
     )
 
     # List command
-    subparsers.add_parser("list", help="查看所有止损配置")
+    subparsers.add_parser("list", help="View all stop-loss configurations")
 
     # Place command - place trailing stop orders in IB system
-    place_parser = subparsers.add_parser("place", help="在IB系统中为指定账户下追踪止损单")
-    place_parser.add_argument("account", help="账户ID (如 U13900978)")
+    place_parser = subparsers.add_parser(
+        "place", help="Place trailing stop orders in IB system for account"
+    )
+    place_parser.add_argument("account", help="Account ID (e.g., U13900978)")
     place_parser.add_argument(
         "--percent",
         type=float,
         required=True,
-        help="止损百分比 (如 5.0 表示价格下跌5%%时触发)",
+        help="Trailing stop percentage (e.g., 5.0 triggers on 5%% price drop)",
     )
     place_parser.add_argument(
         "--symbols",
         nargs="+",
-        help="指定股票代码（如不指定则为该账户所有持仓下单）",
+        help="Specific symbols (if not specified, all positions in account)",
     )
 
     # Orders command - view open orders
-    orders_parser = subparsers.add_parser("orders", help="查看当前活跃订单")
-    orders_parser.add_argument("--account", help="按账户过滤 (可选)")
+    orders_parser = subparsers.add_parser("orders", help="View active orders")
+    orders_parser.add_argument("--account", help="Filter by account (optional)")
+
+    # Cancel command - cancel orders
+    cancel_parser = subparsers.add_parser("cancel", help="Cancel trailing stop orders")
+    cancel_parser.add_argument(
+        "order_ids",
+        nargs="*",
+        type=int,
+        help="Order IDs (if not specified, use --account filter)",
+    )
+    cancel_parser.add_argument("--account", help="Cancel all trailing stop orders for this account")
+    cancel_parser.add_argument(
+        "--symbols",
+        nargs="+",
+        help="Cancel only orders for these symbols (requires --account)",
+    )
 
     return parser.parse_args()
 
@@ -508,8 +644,8 @@ def main() -> None:
     args = parse_args()
 
     if not args.command:
-        print("错误: 请指定子命令 (check, set, list, place, orders)")
-        print("使用 --help 查看帮助")
+        print("Error: Please specify a subcommand (check, set, list, place, orders, cancel)")
+        print("Use --help for help")
         sys.exit(1)
 
     print_banner()
@@ -519,14 +655,14 @@ def main() -> None:
 
     try:
         # Load configuration
-        logger.info("加载配置...")
+        logger.info("Loading configuration...")
         try:
             config = Config()
-            logger.info("配置加载成功")
+            logger.info("Configuration loaded successfully")
         except ConfigurationError as e:
-            logger.error(f"配置错误: {e}")
-            print("\n请检查 .env 文件或环境变量")
-            print("必需的变量:")
+            logger.error(f"Configuration error: {e}")
+            print("\nPlease check .env file or environment variables")
+            print("Required variables:")
             print("  - IBKR_FLEX_TOKEN")
             print("  - IBKR_QUERY_ID")
             sys.exit(1)
@@ -562,31 +698,41 @@ def main() -> None:
                 account=args.account if hasattr(args, "account") else None,
                 logger=logger,
             )
+        elif args.command == "cancel":
+            cancel_trailing_stop_orders(
+                config=config,
+                order_ids=args.order_ids if args.order_ids else None,
+                account=args.account if hasattr(args, "account") else None,
+                symbols=[s.upper() for s in args.symbols]
+                if hasattr(args, "symbols") and args.symbols
+                else None,
+                logger=logger,
+            )
 
         print("\n" + "=" * 60)
-        print("✓ 操作完成")
+        print("Operation completed")
         print("=" * 60)
 
     except KeyboardInterrupt:
-        logger.warning("操作被用户取消")
-        print("\n\n操作被用户取消")
+        logger.warning("Operation cancelled by user")
+        print("\n\nOperation cancelled by user")
         sys.exit(0)
     except APIError as e:
-        logger.error(f"API 错误: {e}")
-        print(f"\n✗ API 错误: {e}")
-        print("\n请检查:")
-        print("  1. TWS 或 IB Gateway 是否已启动")
-        print("  2. API 设置是否已启用")
-        print("  3. 端口号是否正确")
+        logger.error(f"API error: {e}")
+        print(f"\nAPI error: {e}")
+        print("\nPlease check:")
+        print("  1. TWS or IB Gateway is running")
+        print("  2. API settings are enabled")
+        print("  3. Port number is correct")
         sys.exit(1)
     except IBKRTaxError as e:
-        logger.error(f"应用错误: {e}", exc_info=True)
-        print(f"\n✗ 错误: {e}")
+        logger.error(f"Application error: {e}", exc_info=True)
+        print(f"\nError: {e}")
         sys.exit(1)
     except Exception as e:
-        logger.error(f"未预期的错误: {e}", exc_info=True)
-        print(f"\n✗ 未预期的错误: {e}")
-        print("\n详细错误信息请查看日志")
+        logger.error(f"Unexpected error: {e}", exc_info=True)
+        print(f"\nUnexpected error: {e}")
+        print("\nSee logs for detailed error information")
         sys.exit(1)
 
 

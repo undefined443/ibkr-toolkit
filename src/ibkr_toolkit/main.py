@@ -118,6 +118,21 @@ def create_parser() -> argparse.ArgumentParser:
     orders_parser = stop_loss_subparsers.add_parser("orders", help="View open orders")
     orders_parser.add_argument("--account", help="Filter by account ID (optional)")
 
+    # Cancel command - cancel orders
+    cancel_parser = stop_loss_subparsers.add_parser("cancel", help="Cancel trailing stop orders")
+    cancel_parser.add_argument(
+        "order_ids",
+        nargs="*",
+        type=int,
+        help="Order IDs to cancel (leave empty to use --account filter)",
+    )
+    cancel_parser.add_argument("--account", help="Cancel all trailing stop orders for this account")
+    cancel_parser.add_argument(
+        "--symbols",
+        nargs="+",
+        help="Only cancel orders for these symbols (requires --account)",
+    )
+
     return parser
 
 
@@ -160,6 +175,13 @@ def main() -> None:
         elif args.stop_loss_command == "orders":
             if hasattr(args, "account") and args.account:
                 sys.argv.extend(["--account", args.account])
+        elif args.stop_loss_command == "cancel":
+            if args.order_ids:
+                sys.argv.extend([str(oid) for oid in args.order_ids])
+            if hasattr(args, "account") and args.account:
+                sys.argv.extend(["--account", args.account])
+            if hasattr(args, "symbols") and args.symbols:
+                sys.argv.extend(["--symbols"] + args.symbols)
 
         stop_loss_main()
 

@@ -19,10 +19,27 @@ IBKR Toolkit 是一个用于从 Interactive Brokers 获取交易数据并生成�
 
 ### 语言约定
 
-- 代码：所有代码（函数名、变量名、注释、docstring）使用英文
-- 文档：用户文档（README.md）使用中文
-- 日志：控制台输出使用中文，便于用户理解
-- 错误消息：使用中文，便于用户排查问题
+- **代码：所有代码文件中的所有内容必须使用英文**
+  - 函数名、变量名、类名：英文
+  - 注释、docstring：英文
+  - **字符串字面量（print、logger、错误消息等）：英文**
+  - ❌ 禁止在代码中使用任何非英文字符（包括中文、emoji）
+  - ✅ 用户面向的输出消息可以使用英文
+
+- 文档：用户文档（README.md、STOP_LOSS_GUIDE.md）使用中文
+- Emoji：禁止在代码和文档中使用 emoji
+
+**示例：**
+
+```python
+# ❌ 错误 - 代码中不能有中文
+logger.info("正在连接到 IBKR Gateway...")
+print("✅ 订单已取消")  # emoji 也不允许
+
+# ✅ 正确 - 全部使用英文
+logger.info("Connecting to IBKR Gateway...")
+print("Order cancelled successfully")
+```
 
 ### 代码风格
 

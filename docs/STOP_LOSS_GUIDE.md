@@ -91,6 +91,15 @@ ibkr-toolkit stop-loss orders
 
 # 🆕 查看指定账户的活跃订单
 ibkr-toolkit stop-loss orders --account U13900978
+
+# 🆕 取消特定订单（通过订单ID）
+ibkr-toolkit stop-loss cancel 15 12 6
+
+# 🆕 取消指定账户的所有追踪止损单
+ibkr-toolkit stop-loss cancel --account U13900978
+
+# 🆕 取消指定账户特定股票的订单
+ibkr-toolkit stop-loss cancel --account U13900978 --symbols AAPL TSLA
 ```
 
 ### 典型工作流程
@@ -159,6 +168,36 @@ ibkr-toolkit stop-loss orders --account U13900978
 - 必须指定账户ID（如 U13900978）
 - 订单会立即提交到IB系统
 - 可以在TWS/IB Gateway中随时取消或修改订单
+
+#### 5. 🆕 取消止损订单
+
+取消不再需要的追踪止损订单：
+
+```bash
+# 方式1：查看订单获取ID
+ibkr-toolkit stop-loss orders --account U13900978
+
+# 输出示例：
+# 订单ID  股票    动作   数量   类型    止损%
+# 15      SNDK    SELL   4      TRAIL   5.0%
+# 12      NVDA    SELL   4      TRAIL   5.0%
+
+# 方式2：取消特定订单
+ibkr-toolkit stop-loss cancel 15 12
+
+# 方式3：取消账户所有追踪止损单
+ibkr-toolkit stop-loss cancel --account U13900978
+
+# 方式4：只取消特定股票的订单
+ibkr-toolkit stop-loss cancel --account U13900978 --symbols SNDK NVDA
+```
+
+**使用场景：**
+
+- 错误下单后快速取消
+- 市场情况变化，需要调整策略
+- 调整止损百分比（先取消，再重新下单）
+- 决定不再使用止损保护
 
 ## 两种止损方式对比
 

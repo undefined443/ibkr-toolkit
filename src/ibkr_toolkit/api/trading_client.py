@@ -43,7 +43,7 @@ class TradingClient:
             APIError: If connection fails
         """
         try:
-            logger.info(f"正在连接到 IBKR Gateway {self.host}:{self.port}...")
+            logger.info(f"Connecting to IBKR Gateway {self.host}:{self.port}...")
             self.ib.connect(self.host, self.port, clientId=self.client_id)
             self._connected = True
 
@@ -51,16 +51,16 @@ class TradingClient:
             # This avoids "Error 10089: Requested market data requires additional subscription"
             self.ib.reqMarketDataType(3)  # 1=Live, 2=Frozen, 3=Delayed, 4=Delayed-Frozen
 
-            logger.info("连接成功（使用延迟市场数据）")
+            logger.info("Connected successfully (using delayed market data)")
         except Exception as e:
-            raise APIError(f"连接失败: {e}")
+            raise APIError(f"Connection failed: {e}")
 
     def disconnect(self) -> None:
         """Disconnect from TWS or IB Gateway"""
         if self._connected:
             self.ib.disconnect()
             self._connected = False
-            logger.info("已断开连接")
+            logger.info("Disconnected")
 
     def is_connected(self) -> bool:
         """Check if currently connected"""
@@ -120,10 +120,10 @@ class TradingClient:
                 )
                 portfolio_items.append(item)
 
-            logger.info(f"获取到 {len(portfolio_items)} 个持仓")
+            logger.info(f"Retrieved {len(portfolio_items)} positions")
             return portfolio_items
         except Exception as e:
-            raise APIError(f"获取持仓失败: {e}")
+            raise APIError(f"Failed to retrieve positions: {e}")
 
     def get_market_price(self, symbol: str, exchange: str = "SMART") -> Optional[float]:
         """
@@ -140,7 +140,7 @@ class TradingClient:
             APIError: If not connected or request fails
         """
         if not self.is_connected():
-            raise APIError("未连接到 IBKR Gateway")
+            raise APIError("Not connected to IBKR Gateway")
 
         try:
             contract = Stock(symbol, exchange, "USD")
@@ -157,14 +157,14 @@ class TradingClient:
             self.ib.cancelMktData(contract)
 
             if price and price == price:  # Check for NaN
-                logger.info(f"{symbol} 当前价格: ${price:.2f}")
+                logger.info(f"{symbol} current price: ${price:.2f}")
                 return float(price)
             else:
-                logger.warning(f"无法获取 {symbol} 的价格")
+                logger.warning(f"Unable to get price for {symbol}")
                 return None
 
         except Exception as e:
-            raise APIError(f"获取价格失败: {e}")
+            raise APIError(f"Failed to get price: {e}")
 
     def place_stop_loss_order(
         self, symbol: str, quantity: int, stop_price: float, exchange: str = "SMART"
@@ -185,7 +185,7 @@ class TradingClient:
             APIError: If order placement fails
         """
         if not self.is_connected():
-            raise APIError("未连接到 IBKR Gateway")
+            raise APIError("Not connected to IBKR Gateway")
 
         try:
             from ib_async import Order
@@ -206,12 +206,13 @@ class TradingClient:
             order_id = str(trade.order.orderId)
 
             logger.info(
-                f"已下达止损单: {symbol} {quantity}股 @ ${stop_price:.2f} (订单ID: {order_id})"
+                f"Stop-loss order placed: {symbol} {quantity} shares @ "
+                f"${stop_price:.2f} (Order ID: {order_id})"
             )
             return order_id
 
         except Exception as e:
-            raise APIError(f"下达止损单失败: {e}")
+            raise APIError(f"Failed to place stop-loss order: {e}")
 
     def cancel_order(self, order_id: int) -> None:
         """
@@ -224,7 +225,7 @@ class TradingClient:
             APIError: If cancellation fails
         """
         if not self.is_connected():
-            raise APIError("未连接到 IBKR Gateway")
+            raise APIError("Not connected to IBKR Gateway")
 
         try:
             # Find the order
@@ -232,13 +233,82 @@ class TradingClient:
             for trade in trades:
                 if trade.order.orderId == order_id:
                     self.ib.cancelOrder(trade.order)
-                    logger.info(f"已取消订单 {order_id}")
+                    logger.info(f"Order {order_id} cancelled")
                     return
 
-            logger.warning(f"未找到订单 {order_id}")
+            logger.warning(f"Order {order_id} not found")
 
         except Exception as e:
-            raise APIError(f"取消订单失败: {e}")
+            raise APIError(f"Failed to cancel order: {e}")
+
+    def cancel_orders_by_account(
+        self, account: str, symbols: Optional[List[str]] = None, order_type: str = "TRAIL"
+    ) -> List[dict]:
+        """
+        Cancel all orders for a specific account
+
+        Args:
+            account: Account ID to cancel orders for
+            symbols: Optional list of symbols to filter
+            order_type: Order type to cancel (default: TRAIL for trailing stop)
+
+        Returns:
+            List of cancelled order info dictionaries
+
+        Raises:
+            APIError: If request fails
+        """
+        if not self.is_connected():
+            raise APIError("Not connected to IBKR Gateway")
+
+        try:
+            # Get all open orders for the account
+            orders = self.get_open_orders(account=account)
+
+            # Filter by order type and symbols
+            to_cancel = []
+            for order in orders:
+                if order.get("orderType") != order_type:
+                    continue
+                if symbols and order.get("symbol") not in symbols:
+                    continue
+                to_cancel.append(order)
+
+            if not to_cancel:
+                logger.info(f"No orders to cancel for account {account}")
+                return []
+
+            # Cancel each order
+            results = []
+            for order in to_cancel:
+                order_id = order.get("orderId")
+                symbol = order.get("symbol")
+                try:
+                    self.cancel_order(order_id)
+                    results.append(
+                        {
+                            "orderId": order_id,
+                            "symbol": symbol,
+                            "status": "cancelled",
+                        }
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to cancel order {order_id} ({symbol}): {e}")
+                    results.append(
+                        {
+                            "orderId": order_id,
+                            "symbol": symbol,
+                            "status": "failed",
+                            "error": str(e),
+                        }
+                    )
+
+            cancelled_count = len([r for r in results if r["status"] == "cancelled"])
+            logger.info(f"Successfully cancelled {cancelled_count} orders")
+            return results
+
+        except Exception as e:
+            raise APIError(f"Failed to cancel orders in batch: {e}")
 
     def place_trailing_stop_order(
         self,
@@ -272,7 +342,7 @@ class TradingClient:
             APIError: If order placement fails
         """
         if not self.is_connected():
-            raise APIError("未连接到 IBKR Gateway")
+            raise APIError("Not connected to IBKR Gateway")
 
         try:
             from ib_async import Order
@@ -300,8 +370,8 @@ class TradingClient:
             status = trade.orderStatus.status
 
             logger.info(
-                f"已下达追踪止损单: {symbol} {quantity}股 @ {trailing_percent}% "
-                f"(订单ID: {order_id}, 状态: {status})"
+                f"Trailing stop order placed: {symbol} {quantity} shares @ "
+                f"{trailing_percent}% (Order ID: {order_id}, Status: {status})"
             )
 
             return {
@@ -313,7 +383,7 @@ class TradingClient:
             }
 
         except Exception as e:
-            raise APIError(f"下达追踪止损单失败: {e}")
+            raise APIError(f"Failed to place trailing stop order: {e}")
 
     def get_open_orders(self, account: Optional[str] = None) -> List[dict]:
         """
@@ -330,7 +400,7 @@ class TradingClient:
             APIError: If request fails
         """
         if not self.is_connected():
-            raise APIError("未连接到 IBKR Gateway")
+            raise APIError("Not connected to IBKR Gateway")
 
         try:
             trades = self.ib.openTrades()
@@ -360,11 +430,11 @@ class TradingClient:
 
                 orders.append(order_info)
 
-            logger.info(f"找到 {len(orders)} 个活跃订单")
+            logger.info(f"Found {len(orders)} active orders")
             return orders
 
         except Exception as e:
-            raise APIError(f"获取订单失败: {e}")
+            raise APIError(f"Failed to get orders: {e}")
 
     def place_trailing_stop_for_positions(
         self, account: str, trailing_percent: float, symbols: Optional[List[str]] = None
@@ -384,7 +454,7 @@ class TradingClient:
             APIError: If request fails
         """
         if not self.is_connected():
-            raise APIError("未连接到 IBKR Gateway")
+            raise APIError("Not connected to IBKR Gateway")
 
         try:
             # Get positions for the account
@@ -396,7 +466,7 @@ class TradingClient:
                 account_positions = [p for p in account_positions if p.contract.symbol in symbols]
 
             if not account_positions:
-                logger.warning(f"账户 {account} 没有找到持仓")
+                logger.warning(f"No positions found for account {account}")
                 return []
 
             results = []
@@ -405,7 +475,7 @@ class TradingClient:
                 quantity = int(abs(pos.position))  # Use absolute value
 
                 if quantity <= 0:
-                    logger.warning(f"跳过 {symbol}：数量为 {quantity}")
+                    logger.warning(f"Skipping {symbol}: quantity is {quantity}")
                     continue
 
                 try:
@@ -417,14 +487,15 @@ class TradingClient:
                     )
                     results.append(result)
                 except Exception as e:
-                    logger.error(f"为 {symbol} 下单失败: {e}")
+                    logger.error(f"Failed to place order for {symbol}: {e}")
                     results.append({"symbol": symbol, "error": str(e), "status": "failed"})
 
-            logger.info(f"成功为 {len([r for r in results if 'orderId' in r])} 个持仓下单")
+            success_count = len([r for r in results if "orderId" in r])
+            logger.info(f"Successfully placed orders for {success_count} positions")
             return results
 
         except Exception as e:
-            raise APIError(f"批量下单失败: {e}")
+            raise APIError(f"Failed to place orders in batch: {e}")
 
     def __enter__(self):
         """Context manager entry"""
