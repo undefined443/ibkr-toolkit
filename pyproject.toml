@@ -14,6 +14,7 @@ dependencies = [
     "pandas>=2.0.0",
     "openpyxl>=3.1.0",
     "python-dotenv>=1.0.0",
+    "ib-async>=2.1.0",
 ]
 
 [project.optional-dependencies]
@@ -28,6 +29,7 @@ dev = [
 
 [project.scripts]
 ibkr-tax = "ibkr_tax.cli:main"
+ibkr-stop-loss = "ibkr_tax.stop_loss_cli:main"
 
 [project.urls]
 Homepage = "https://github.com/yourusername/ibkr-tax"
