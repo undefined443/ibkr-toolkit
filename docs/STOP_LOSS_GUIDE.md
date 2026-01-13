@@ -81,28 +81,28 @@ ibkr-toolkit stop-loss set AAPL --percent 5.0
 ibkr-toolkit stop-loss list
 
 # 🆕 在IB系统中为指定账户下追踪止损单
-ibkr-toolkit stop-loss place U13900978 --percent 5.0
+ibkr-toolkit stop-loss place U12345678 --percent 5.0
 
 # 🆕 为指定账户的特定股票下追踪止损单
-ibkr-toolkit stop-loss place U13900978 --percent 5.0 --symbols AAPL TSLA
+ibkr-toolkit stop-loss place U12345678 --percent 5.0 --symbols AAPL TSLA
 
 # 🆕 查看所有活跃订单
 ibkr-toolkit stop-loss orders
 
 # 🆕 查看指定账户的活跃订单
-ibkr-toolkit stop-loss orders --account U13900978
+ibkr-toolkit stop-loss orders --account U12345678
 
 # 🆕 取消特定订单（通过订单ID）
 ibkr-toolkit stop-loss cancel 15 12 6
 
 # 🆕 取消指定账户的所有追踪止损单
-ibkr-toolkit stop-loss cancel --account U13900978
+ibkr-toolkit stop-loss cancel --account U12345678
 
 # 🆕 取消指定账户特定股票的订单
-ibkr-toolkit stop-loss cancel --account U13900978 --symbols AAPL TSLA
+ibkr-toolkit stop-loss cancel --account U12345678 --symbols AAPL TSLA
 
 # 🆕🆕 为指定股票下追踪止损买入单（逢低买入策略）
-ibkr-toolkit stop-loss place-buy U13900978 --percent 5.0 --symbols AAPL TSLA
+ibkr-toolkit stop-loss place-buy U12345678 --percent 5.0 --symbols AAPL TSLA
 ```
 
 ### 典型工作流程
@@ -149,14 +149,14 @@ ibkr-toolkit stop-loss list
 使用 `place` 命令直接在IB系统中为指定账户下Trailing Stop订单：
 
 ```bash
-# 为 first 账户（U13900978）的所有持仓下5%追踪止损单
-ibkr-toolkit stop-loss place U13900978 --percent 5.0
+# 为 first 账户（U12345678）的所有持仓下5%追踪止损单
+ibkr-toolkit stop-loss place U12345678 --percent 5.0
 
 # 只为指定股票下单
-ibkr-toolkit stop-loss place U13900978 --percent 5.0 --symbols AAPL TSLA NVDA
+ibkr-toolkit stop-loss place U12345678 --percent 5.0 --symbols AAPL TSLA NVDA
 
 # 查看下单结果
-ibkr-toolkit stop-loss orders --account U13900978
+ibkr-toolkit stop-loss orders --account U12345678
 ```
 
 **优势：**
@@ -168,7 +168,7 @@ ibkr-toolkit stop-loss orders --account U13900978
 
 **注意事项：**
 
-- 必须指定账户ID（如 U13900978）
+- 必须指定账户ID（如 U12345678）
 - 订单会立即提交到IB系统
 - 可以在TWS/IB Gateway中随时取消或修改订单
 
@@ -178,7 +178,7 @@ ibkr-toolkit stop-loss orders --account U13900978
 
 ```bash
 # 方式1：查看订单获取ID
-ibkr-toolkit stop-loss orders --account U13900978
+ibkr-toolkit stop-loss orders --account U12345678
 
 # 输出示例：
 # 订单ID  股票    动作   数量   类型    止损%
@@ -189,10 +189,10 @@ ibkr-toolkit stop-loss orders --account U13900978
 ibkr-toolkit stop-loss cancel 15 12
 
 # 方式3：取消账户所有追踪止损单
-ibkr-toolkit stop-loss cancel --account U13900978
+ibkr-toolkit stop-loss cancel --account U12345678
 
 # 方式4：只取消特定股票的订单
-ibkr-toolkit stop-loss cancel --account U13900978 --symbols SNDK NVDA
+ibkr-toolkit stop-loss cancel --account U12345678 --symbols SNDK NVDA
 ```
 
 **使用场景：**
@@ -230,10 +230,10 @@ ibkr-toolkit stop-loss cancel --account U13900978 --symbols SNDK NVDA
 # 为 AAPL 和 TSLA 设置 5% 追踪止损买入
 # 价格下跌时，买入触发价会跟随下降
 # 价格回升超过 5% 时，自动买入
-ibkr-toolkit stop-loss place-buy U13900978 --percent 5.0 --symbols AAPL TSLA
+ibkr-toolkit stop-loss place-buy U12345678 --percent 5.0 --symbols AAPL TSLA
 
 # 查看订单状态
-ibkr-toolkit stop-loss orders --account U13900978
+ibkr-toolkit stop-loss orders --account U12345678
 ```
 
 **适用场景：**
@@ -287,8 +287,8 @@ ibkr-toolkit stop-loss check --email
 **使用命令：**
 
 ```bash
-ibkr-toolkit stop-loss place U13900978 --percent 5.0
-ibkr-toolkit stop-loss orders --account U13900978
+ibkr-toolkit stop-loss place U12345678 --percent 5.0
+ibkr-toolkit stop-loss orders --account U12345678
 ```
 
 **特点：**
