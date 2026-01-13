@@ -59,26 +59,26 @@ SMTP_USE_TLS=true
 
 ### 基本命令
 
-止损功能通过 `ibkr-stop-loss` 命令使用:
+止损功能通过 `ibkr-toolkit stop-loss` 命令使用:
 
 ```bash
 # 查看帮助
-ibkr-stop-loss --help
+ibkr-toolkit stop-loss --help
 
 # 检查所有持仓的止损条件
-ibkr-stop-loss check
+ibkr-toolkit stop-loss check
 
 # 检查并发送邮件通知
-ibkr-stop-loss check --email
+ibkr-toolkit stop-loss check --email
 
 # 检查并自动执行止损订单 (谨慎使用!)
-ibkr-stop-loss check --auto-execute
+ibkr-toolkit stop-loss check --auto-execute
 
 # 为特定股票设置止损
-ibkr-stop-loss set AAPL --percent 5.0
+ibkr-toolkit stop-loss set AAPL --percent 5.0
 
 # 查看所有止损配置
-ibkr-stop-loss list
+ibkr-toolkit stop-loss list
 ```
 
 ### 典型工作流程
@@ -90,17 +90,17 @@ ibkr-stop-loss list
 # ...
 
 # 为 AAPL 设置 5% 移动止损
-ibkr-stop-loss set AAPL --percent 5.0
+ibkr-toolkit stop-loss set AAPL --percent 5.0
 
 # 为 TSLA 设置 8% 移动止损 (更高风险容忍度)
-ibkr-stop-loss set TSLA --percent 8.0
+ibkr-toolkit stop-loss set TSLA --percent 8.0
 ```
 
 #### 2. 定期检查止损条件
 
 ```bash
 # 手动检查 (每天执行一次或多次)
-ibkr-stop-loss check --email
+ibkr-toolkit stop-loss check --email
 ```
 
 **推荐做法**: 使用 cron 定时任务每天自动检查:
@@ -110,14 +110,14 @@ ibkr-stop-loss check --email
 crontab -e
 
 # 添加定时任务: 每天 9:30 和 15:30 检查 (美股开盘和收盘前)
-30 9,15 * * 1-5 cd /path/to/ibkr-toolkit && uv run ibkr-stop-loss check --email
+30 9,15 * * 1-5 cd /path/to/ibkr-toolkit && uv run ibkr-toolkit stop-loss check --email
 ```
 
 #### 3. 查看当前配置
 
 ```bash
 # 查看所有股票的止损配置
-ibkr-stop-loss list
+ibkr-toolkit stop-loss list
 ```
 
 ## 移动止损工作原理
@@ -208,7 +208,7 @@ ibkr-stop-loss list
 A: 重新运行 `set` 命令即可覆盖:
 
 ```bash
-ibkr-stop-loss set AAPL --percent 8.0
+ibkr-toolkit stop-loss set AAPL --percent 8.0
 ```
 
 ### Q: 如何删除某个股票的止损配置?

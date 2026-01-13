@@ -28,8 +28,7 @@ dev = [
 ]
 
 [project.scripts]
-ibkr-toolkit = "ibkr_toolkit.cli:main"
-ibkr-toolkit-stop-loss = "ibkr_toolkit.stop_loss_cli:main"
+ibkr-toolkit = "ibkr_toolkit.main:main"
 
 [project.urls]
 Homepage = "https://github.com/undefined443/ibkr-toolkit"

@@ -1,0 +1,140 @@
+"""
+Main CLI entry point for IBKR Toolkit
+"""
+
+import argparse
+import sys
+
+from ibkr_toolkit import __version__
+
+
+def create_parser() -> argparse.ArgumentParser:
+    """
+    Create the main argument parser with subcommands
+
+    Returns:
+        ArgumentParser: Main parser with subcommands
+    """
+    parser = argparse.ArgumentParser(
+        prog="ibkr-toolkit",
+        description="A comprehensive toolkit for IBKR trading data processing and management",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {__version__}")
+
+    # Create subcommands
+    subparsers = parser.add_subparsers(
+        title="commands",
+        description="Available commands",
+        dest="command",
+        required=True,
+        help="Command to execute",
+    )
+
+    # Report subcommand
+    report_parser = subparsers.add_parser(
+        "report",
+        help="Generate tax reports from IBKR Flex Query data",
+        description="Generate tax reports from IBKR Flex Query data",
+    )
+    report_parser.add_argument(
+        "-y",
+        "--year",
+        type=int,
+        help="Specify a single tax year (e.g., 2024)",
+    )
+    report_parser.add_argument(
+        "--from-year",
+        type=int,
+        help="Specify the start year for multi-year query (e.g., 2020 will query 2020-current)",
+    )
+    report_parser.add_argument(
+        "--all",
+        action="store_true",
+        help=(
+            "Fetch all data from first trade year to current year (uses FIRST_TRADE_YEAR from .env)"
+        ),
+    )
+
+    # Stop-loss subcommand
+    stop_loss_parser = subparsers.add_parser(
+        "stop-loss",
+        help="Manage trailing stop-loss for your positions",
+        description="Manage trailing stop-loss for your positions",
+    )
+    stop_loss_subparsers = stop_loss_parser.add_subparsers(
+        title="stop-loss commands",
+        description="Available stop-loss commands",
+        dest="stop_loss_command",
+        required=True,
+        help="Stop-loss command to execute",
+    )
+
+    # Check command
+    check_parser = stop_loss_subparsers.add_parser(
+        "check", help="Check all positions for stop-loss triggers"
+    )
+    check_parser.add_argument(
+        "--email", action="store_true", help="Send email notification if stop-loss triggered"
+    )
+    check_parser.add_argument(
+        "--auto-execute",
+        action="store_true",
+        help="Automatically execute stop-loss orders (use with caution!)",
+    )
+
+    # Set command
+    set_parser = stop_loss_subparsers.add_parser("set", help="Set trailing stop-loss for a symbol")
+    set_parser.add_argument("symbol", help="Stock symbol (e.g., AAPL)")
+    set_parser.add_argument(
+        "--percent",
+        type=float,
+        required=True,
+        help="Trailing stop-loss percentage (e.g., 5.0 for 5%%)",
+    )
+
+    # List command
+    stop_loss_subparsers.add_parser("list", help="List all stop-loss configurations")
+
+    return parser
+
+
+def main() -> None:
+    """Main entry point for CLI"""
+    parser = create_parser()
+    args = parser.parse_args()
+
+    # Route to appropriate command handler
+    if args.command == "report":
+        from ibkr_toolkit.cli import main as report_main
+
+        # Pass arguments to report main
+        sys.argv = ["ibkr-toolkit-report"]
+        if args.year:
+            sys.argv.extend(["--year", str(args.year)])
+        if args.from_year:
+            sys.argv.extend(["--from-year", str(args.from_year)])
+        if args.all:
+            sys.argv.append("--all")
+
+        report_main()
+
+    elif args.command == "stop-loss":
+        from ibkr_toolkit.stop_loss_cli import main as stop_loss_main
+
+        # Pass arguments to stop-loss main
+        sys.argv = ["ibkr-toolkit-stop-loss", args.stop_loss_command]
+        if args.stop_loss_command == "check":
+            if args.email:
+                sys.argv.append("--email")
+            if args.auto_execute:
+                sys.argv.append("--auto-execute")
+        elif args.stop_loss_command == "set":
+            sys.argv.extend([args.symbol, "--percent", str(args.percent)])
+
+        stop_loss_main()
+
+
+if __name__ == "__main__":
+    main()

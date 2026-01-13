@@ -82,16 +82,16 @@ OUTPUT_DIR=./data/output
 
 ```bash
 # 使用默认日期范围（Flex Query 中配置的日期）
-uv run ibkr-toolkit
+uv run ibkr-toolkit report
 
 # 指定单个税务年度（推荐，适用于中国税务申报）
-uv run ibkr-toolkit --year 2025
+uv run ibkr-toolkit report --year 2025
 
 # 获取当前年度数据
-uv run ibkr-toolkit --year $(date +%Y)
+uv run ibkr-toolkit report --year $(date +%Y)
 
 # 查询从指定年份到当前的所有数据（自动分年查询）
-uv run ibkr-toolkit --from-year 2020
+uv run ibkr-toolkit report --from-year 2020
 
 # 查询从开始交易到现在的所有数据（需配置 FIRST_TRADE_YEAR）
 uv run ibkr-toolkit --all
@@ -185,7 +185,7 @@ uv run ibkr-toolkit --help
 运行工具验证配置是否正确：
 
 ```bash
-uv run ibkr-toolkit
+uv run ibkr-toolkit report
 ```
 
 如果配置正确，工具将自动获取数据并生成报表。
@@ -679,10 +679,10 @@ uv add --dev package-name
 
 ```bash
 # 查询 2025 年数据
-uv run ibkr-toolkit --year 2025
+uv run ibkr-toolkit report --year 2025
 
 # 查询 2024 年数据
-uv run ibkr-toolkit --year 2024
+uv run ibkr-toolkit report --year 2024
 ```
 
 工具会自动查询该年度 1月1日 至 12月31日 的所有交易记录，无需修改 Flex Query 配置。
@@ -703,7 +703,7 @@ uv run ibkr-toolkit --year 2024
 
 ```bash
 # 从 2020 年查询到现在
-uv run ibkr-toolkit --from-year 2020
+uv run ibkr-toolkit report --from-year 2020
 ```
 
 方法 2：使用 `--all` 参数（推荐）
