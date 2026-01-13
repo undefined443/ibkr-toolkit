@@ -240,6 +240,192 @@ class TradingClient:
         except Exception as e:
             raise APIError(f"取消订单失败: {e}")
 
+    def place_trailing_stop_order(
+        self,
+        symbol: str,
+        quantity: int,
+        trailing_percent: float,
+        account: Optional[str] = None,
+        exchange: str = "SMART",
+    ) -> dict:
+        """
+        Place a trailing stop order
+
+        Args:
+            symbol: Stock symbol
+            quantity: Number of shares to sell (positive number)
+            trailing_percent: Trailing stop percentage (e.g., 5.0 for 5%)
+            account: Account to place order for (optional)
+            exchange: Exchange code (default: SMART)
+
+        Returns:
+            Dictionary with order information:
+            {
+                'orderId': int,
+                'symbol': str,
+                'quantity': int,
+                'trailing_percent': float,
+                'status': str
+            }
+
+        Raises:
+            APIError: If order placement fails
+        """
+        if not self.is_connected():
+            raise APIError("未连接到 IBKR Gateway")
+
+        try:
+            from ib_async import Order
+
+            contract = Stock(symbol, exchange, "USD")
+            self.ib.qualifyContracts(contract)
+
+            # Create trailing stop order
+            order = Order()
+            order.action = "SELL"
+            order.orderType = "TRAIL"
+            order.totalQuantity = quantity
+            order.trailingPercent = trailing_percent
+            order.tif = "GTC"  # Good Till Cancelled
+            order.outsideRth = True  # Allow execution outside regular trading hours
+
+            if account:
+                order.account = account
+
+            # Place order
+            trade = self.ib.placeOrder(contract, order)
+            self.ib.sleep(1)  # Wait for order to be submitted
+
+            order_id = trade.order.orderId
+            status = trade.orderStatus.status
+
+            logger.info(
+                f"已下达追踪止损单: {symbol} {quantity}股 @ {trailing_percent}% "
+                f"(订单ID: {order_id}, 状态: {status})"
+            )
+
+            return {
+                "orderId": order_id,
+                "symbol": symbol,
+                "quantity": quantity,
+                "trailing_percent": trailing_percent,
+                "status": status,
+            }
+
+        except Exception as e:
+            raise APIError(f"下达追踪止损单失败: {e}")
+
+    def get_open_orders(self, account: Optional[str] = None) -> List[dict]:
+        """
+        Get all open orders
+
+        Args:
+            account: Filter by account (optional)
+
+        Returns:
+            List of order dictionaries with keys:
+            - orderId, symbol, quantity, orderType, status, etc.
+
+        Raises:
+            APIError: If request fails
+        """
+        if not self.is_connected():
+            raise APIError("未连接到 IBKR Gateway")
+
+        try:
+            trades = self.ib.openTrades()
+            self.ib.sleep(1)
+
+            orders = []
+            for trade in trades:
+                # Filter by account if specified
+                if account and trade.order.account != account:
+                    continue
+
+                order_info = {
+                    "orderId": trade.order.orderId,
+                    "symbol": trade.contract.symbol,
+                    "action": trade.order.action,
+                    "quantity": trade.order.totalQuantity,
+                    "orderType": trade.order.orderType,
+                    "status": trade.orderStatus.status,
+                    "account": trade.order.account,
+                }
+
+                # Add type-specific fields
+                if trade.order.orderType == "TRAIL":
+                    order_info["trailing_percent"] = trade.order.trailingPercent
+                elif trade.order.orderType == "STP":
+                    order_info["stop_price"] = trade.order.auxPrice
+
+                orders.append(order_info)
+
+            logger.info(f"找到 {len(orders)} 个活跃订单")
+            return orders
+
+        except Exception as e:
+            raise APIError(f"获取订单失败: {e}")
+
+    def place_trailing_stop_for_positions(
+        self, account: str, trailing_percent: float, symbols: Optional[List[str]] = None
+    ) -> List[dict]:
+        """
+        Place trailing stop orders for all positions in an account
+
+        Args:
+            account: Account ID to place orders for
+            trailing_percent: Trailing stop percentage
+            symbols: Optional list of symbols to filter (if None, all positions)
+
+        Returns:
+            List of order result dictionaries
+
+        Raises:
+            APIError: If request fails
+        """
+        if not self.is_connected():
+            raise APIError("未连接到 IBKR Gateway")
+
+        try:
+            # Get positions for the account
+            all_positions = self.get_positions()
+            account_positions = [p for p in all_positions if p.account == account]
+
+            # Filter by symbols if specified
+            if symbols:
+                account_positions = [p for p in account_positions if p.contract.symbol in symbols]
+
+            if not account_positions:
+                logger.warning(f"账户 {account} 没有找到持仓")
+                return []
+
+            results = []
+            for pos in account_positions:
+                symbol = pos.contract.symbol
+                quantity = int(abs(pos.position))  # Use absolute value
+
+                if quantity <= 0:
+                    logger.warning(f"跳过 {symbol}：数量为 {quantity}")
+                    continue
+
+                try:
+                    result = self.place_trailing_stop_order(
+                        symbol=symbol,
+                        quantity=quantity,
+                        trailing_percent=trailing_percent,
+                        account=account,
+                    )
+                    results.append(result)
+                except Exception as e:
+                    logger.error(f"为 {symbol} 下单失败: {e}")
+                    results.append({"symbol": symbol, "error": str(e), "status": "failed"})
+
+            logger.info(f"成功为 {len([r for r in results if 'orderId' in r])} 个持仓下单")
+            return results
+
+        except Exception as e:
+            raise APIError(f"批量下单失败: {e}")
+
     def __enter__(self):
         """Context manager entry"""
         self.connect()

@@ -5,7 +5,7 @@ Command-line interface for IBKR Stop Loss Manager
 
 import argparse
 import sys
-from typing import Optional
+from typing import List, Optional
 
 from .api.trading_client import TradingClient
 from .config import Config
@@ -250,6 +250,180 @@ def list_stop_loss_configs(logger: Optional[any] = None) -> None:
         )
 
 
+def place_trailing_stop_orders(
+    config: Config,
+    account: str,
+    trailing_percent: float,
+    symbols: Optional[List[str]] = None,
+    logger: Optional[any] = None,
+) -> None:
+    """
+    Place trailing stop orders in IB system for specific account
+
+    Args:
+        config: Configuration object
+        account: Account ID to place orders for
+        trailing_percent: Trailing stop percentage
+        symbols: Optional list of symbols (if None, all positions)
+        logger: Logger instance
+    """
+    if logger is None:
+        logger = setup_logger("stop_loss", level="INFO", console=True)
+
+    from .api.trading_client import TradingClient
+
+    logger.info("正在连接到 IBKR Gateway...")
+
+    # Connect to IB Gateway
+    client = TradingClient(
+        host=config.ibkr_gateway_host,
+        port=config.ibkr_gateway_port,
+        client_id=config.ibkr_client_id,
+    )
+
+    try:
+        client.connect()
+
+        print(f"\n{'=' * 80}")
+        print(f"为账户 {account} 下追踪止损单")
+        print(f"止损百分比: {trailing_percent}%")
+        if symbols:
+            print(f"指定股票: {', '.join(symbols)}")
+        print(f"{'=' * 80}\n")
+
+        # Place orders
+        results = client.place_trailing_stop_for_positions(
+            account=account,
+            trailing_percent=trailing_percent,
+            symbols=symbols,
+        )
+
+        if not results:
+            print("未找到需要下单的持仓")
+            return
+
+        # Display results
+        print(f"\n{'=' * 80}")
+        print("下单结果:")
+        print(f"{'=' * 80}\n")
+
+        success_count = 0
+        failed_count = 0
+
+        for result in results:
+            symbol = result.get("symbol")
+            if "orderId" in result:
+                print(
+                    f"✓ {symbol:6s}: 订单ID {result['orderId']:4d}, "
+                    f"{result['quantity']:2.0f}股, "
+                    f"止损{result['trailing_percent']:.1f}%, "
+                    f"状态: {result['status']}"
+                )
+                success_count += 1
+            else:
+                print(f"✗ {symbol:6s}: {result.get('error', '未知错误')}")
+                failed_count += 1
+
+        print(f"\n{'=' * 80}")
+        print(f"成功: {success_count} 个 | 失败: {failed_count} 个")
+        print(f"{'=' * 80}\n")
+
+        print("提示: 这些订单已提交到IB系统，会自动监控和执行。")
+        print("你可以在TWS/IB Gateway中查看和管理这些订单。")
+
+    finally:
+        client.disconnect()
+
+
+def view_open_orders(
+    config: Config,
+    account: Optional[str] = None,
+    logger: Optional[any] = None,
+) -> None:
+    """
+    View open orders in IB system
+
+    Args:
+        config: Configuration object
+        account: Optional account filter
+        logger: Logger instance
+    """
+    if logger is None:
+        logger = setup_logger("stop_loss", level="INFO", console=True)
+
+    from .api.trading_client import TradingClient
+
+    logger.info("正在连接到 IBKR Gateway...")
+
+    # Connect to IB Gateway
+    client = TradingClient(
+        host=config.ibkr_gateway_host,
+        port=config.ibkr_gateway_port,
+        client_id=config.ibkr_client_id,
+    )
+
+    try:
+        client.connect()
+
+        print(f"\n{'=' * 80}")
+        if account:
+            print(f"账户 {account} 的活跃订单:")
+        else:
+            print("所有账户的活跃订单:")
+        print(f"{'=' * 80}\n")
+
+        # Get open orders
+        orders = client.get_open_orders(account=account)
+
+        if not orders:
+            print("未找到活跃订单")
+            return
+
+        # Group by account
+        accounts = {}
+        for order in orders:
+            acc = order.get("account", "Unknown")
+            if acc not in accounts:
+                accounts[acc] = []
+            accounts[acc].append(order)
+
+        # Display orders
+        for acc, order_list in sorted(accounts.items()):
+            print(f"\n账户: {acc}")
+            print("-" * 80)
+            print(
+                f"{'订单ID':<8} {'股票':<8} {'动作':<6} {'数量':<6} "
+                f"{'类型':<8} {'止损%/价格':<12} {'状态':<15}"
+            )
+            print("-" * 80)
+
+            for order in order_list:
+                order_id = order.get("orderId", "N/A")
+                symbol = order.get("symbol", "N/A")
+                action = order.get("action", "N/A")
+                quantity = order.get("quantity", 0)
+                order_type = order.get("orderType", "N/A")
+                status = order.get("status", "N/A")
+
+                # Get type-specific field
+                if order_type == "TRAIL":
+                    type_info = f"{order.get('trailing_percent', 0):.1f}%"
+                elif order_type == "STP":
+                    type_info = f"${order.get('stop_price', 0):.2f}"
+                else:
+                    type_info = "-"
+
+                print(
+                    f"{order_id:<8} {symbol:<8} {action:<6} {quantity:<6.0f} "
+                    f"{order_type:<8} {type_info:<12} {status:<15}"
+                )
+
+        print(f"\n共 {len(orders)} 个活跃订单")
+
+    finally:
+        client.disconnect()
+
+
 def parse_args() -> argparse.Namespace:
     """
     Parse command-line arguments
@@ -307,6 +481,25 @@ def parse_args() -> argparse.Namespace:
     # List command
     subparsers.add_parser("list", help="查看所有止损配置")
 
+    # Place command - place trailing stop orders in IB system
+    place_parser = subparsers.add_parser("place", help="在IB系统中为指定账户下追踪止损单")
+    place_parser.add_argument("account", help="账户ID (如 U13900978)")
+    place_parser.add_argument(
+        "--percent",
+        type=float,
+        required=True,
+        help="止损百分比 (如 5.0 表示价格下跌5%%时触发)",
+    )
+    place_parser.add_argument(
+        "--symbols",
+        nargs="+",
+        help="指定股票代码（如不指定则为该账户所有持仓下单）",
+    )
+
+    # Orders command - view open orders
+    orders_parser = subparsers.add_parser("orders", help="查看当前活跃订单")
+    orders_parser.add_argument("--account", help="按账户过滤 (可选)")
+
     return parser.parse_args()
 
 
@@ -315,7 +508,7 @@ def main() -> None:
     args = parse_args()
 
     if not args.command:
-        print("错误: 请指定子命令 (check, set, list)")
+        print("错误: 请指定子命令 (check, set, list, place, orders)")
         print("使用 --help 查看帮助")
         sys.exit(1)
 
@@ -355,6 +548,20 @@ def main() -> None:
             )
         elif args.command == "list":
             list_stop_loss_configs(logger=logger)
+        elif args.command == "place":
+            place_trailing_stop_orders(
+                config=config,
+                account=args.account,
+                trailing_percent=args.percent,
+                symbols=[s.upper() for s in args.symbols] if args.symbols else None,
+                logger=logger,
+            )
+        elif args.command == "orders":
+            view_open_orders(
+                config=config,
+                account=args.account if hasattr(args, "account") else None,
+                logger=logger,
+            )
 
         print("\n" + "=" * 60)
         print("✓ 操作完成")

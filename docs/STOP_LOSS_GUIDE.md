@@ -74,11 +74,23 @@ ibkr-toolkit stop-loss check --email
 # 检查并自动执行止损订单 (谨慎使用!)
 ibkr-toolkit stop-loss check --auto-execute
 
-# 为特定股票设置止损
+# 为特定股票设置止损配置（仅监控，不下单）
 ibkr-toolkit stop-loss set AAPL --percent 5.0
 
 # 查看所有止损配置
 ibkr-toolkit stop-loss list
+
+# 🆕 在IB系统中为指定账户下追踪止损单
+ibkr-toolkit stop-loss place U13900978 --percent 5.0
+
+# 🆕 为指定账户的特定股票下追踪止损单
+ibkr-toolkit stop-loss place U13900978 --percent 5.0 --symbols AAPL TSLA
+
+# 🆕 查看所有活跃订单
+ibkr-toolkit stop-loss orders
+
+# 🆕 查看指定账户的活跃订单
+ibkr-toolkit stop-loss orders --account U13900978
 ```
 
 ### 典型工作流程
@@ -119,6 +131,89 @@ crontab -e
 # 查看所有股票的止损配置
 ibkr-toolkit stop-loss list
 ```
+
+#### 4. 🆕 在IB系统中下追踪止损单（推荐）
+
+使用 `place` 命令直接在IB系统中为指定账户下Trailing Stop订单：
+
+```bash
+# 为 first 账户（U13900978）的所有持仓下5%追踪止损单
+ibkr-toolkit stop-loss place U13900978 --percent 5.0
+
+# 只为指定股票下单
+ibkr-toolkit stop-loss place U13900978 --percent 5.0 --symbols AAPL TSLA NVDA
+
+# 查看下单结果
+ibkr-toolkit stop-loss orders --account U13900978
+```
+
+**优势：**
+
+- ✅ IB系统原生支持，24小时自动监控和执行
+- ✅ 可以精确指定账户，避免误操作
+- ✅ 不需要本地程序常驻或定时任务
+- ✅ 在TWS/IB Gateway中可以查看和管理订单
+
+**注意事项：**
+
+- 必须指定账户ID（如 U13900978）
+- 订单会立即提交到IB系统
+- 可以在TWS/IB Gateway中随时取消或修改订单
+
+## 两种止损方式对比
+
+IBKR Toolkit 提供了两种止损管理方式：
+
+### 方式一：监控模式（set + check）
+
+**使用命令：**
+
+```bash
+ibkr-toolkit stop-loss set AAPL --percent 5.0
+ibkr-toolkit stop-loss check --email
+```
+
+**特点：**
+
+- 本地监控，需要定期执行 `check` 命令
+- 支持邮件通知
+- 可以使用 `--auto-execute` 自动下单，但不建议
+- 适合多账户统一管理和监控
+
+**局限性：**
+
+- ❌ 无法区分账户（按股票代码管理）
+- ❌ 需要定时任务或手动执行
+- ❌ 不是24小时监控（除非自己搭建服务）
+
+### 方式二：IB系统订单（place）🆕 推荐
+
+**使用命令：**
+
+```bash
+ibkr-toolkit stop-loss place U13900978 --percent 5.0
+ibkr-toolkit stop-loss orders --account U13900978
+```
+
+**特点：**
+
+- 直接在IB系统中下Trailing Stop订单
+- IB系统24小时自动监控和执行
+- 可以精确指定账户
+- 在TWS/IB Gateway中可视化管理
+
+**优势：**
+
+- ✅ 可以按账户下单，避免混淆
+- ✅ IB原生功能，更可靠
+- ✅ 24小时自动监控，无需本地程序
+- ✅ 市场开盘时订单自动激活
+
+**推荐使用场景：**
+
+- 有多个账户需要区分管理
+- 需要24小时自动监控
+- 希望在IB系统中统一管理订单
 
 ## 移动止损工作原理
 

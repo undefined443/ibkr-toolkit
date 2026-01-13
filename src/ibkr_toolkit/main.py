@@ -97,6 +97,27 @@ def create_parser() -> argparse.ArgumentParser:
     # List command
     stop_loss_subparsers.add_parser("list", help="List all stop-loss configurations")
 
+    # Place command - place trailing stop orders in IB system
+    place_parser = stop_loss_subparsers.add_parser(
+        "place", help="Place trailing stop orders in IB system for specific account"
+    )
+    place_parser.add_argument("account", help="Account ID (e.g., U13900978)")
+    place_parser.add_argument(
+        "--percent",
+        type=float,
+        required=True,
+        help="Trailing stop percentage (e.g., 5.0 for 5%%)",
+    )
+    place_parser.add_argument(
+        "--symbols",
+        nargs="+",
+        help="Specific symbols to place orders for (if not specified, all positions)",
+    )
+
+    # Orders command - view open orders
+    orders_parser = stop_loss_subparsers.add_parser("orders", help="View open orders")
+    orders_parser.add_argument("--account", help="Filter by account ID (optional)")
+
     return parser
 
 
@@ -132,6 +153,13 @@ def main() -> None:
                 sys.argv.append("--auto-execute")
         elif args.stop_loss_command == "set":
             sys.argv.extend([args.symbol, "--percent", str(args.percent)])
+        elif args.stop_loss_command == "place":
+            sys.argv.extend([args.account, "--percent", str(args.percent)])
+            if args.symbols:
+                sys.argv.extend(["--symbols"] + args.symbols)
+        elif args.stop_loss_command == "orders":
+            if hasattr(args, "account") and args.account:
+                sys.argv.extend(["--account", args.account])
 
         stop_loss_main()
 
