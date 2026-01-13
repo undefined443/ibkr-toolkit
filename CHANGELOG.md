@@ -12,7 +12,7 @@ All notable changes to this project will be documented in this file.
 - Excel and JSON report generation
 - Support for multiple accounts
 - Chinese tax calculation (20% tax rate with foreign tax credit)
-- Command-line interface (`ibkr-tax`)
+- Command-line interface (`ibkr-toolkit`)
 - Comprehensive documentation
 
 ### Features

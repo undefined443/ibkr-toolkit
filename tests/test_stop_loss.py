@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from ibkr_tax.services.stop_loss import StopLossConfig, StopLossManager
+from ibkr_toolkit.services.stop_loss import StopLossConfig, StopLossManager
 
 
 @pytest.fixture

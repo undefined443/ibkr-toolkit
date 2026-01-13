@@ -4,7 +4,7 @@ Tests for data parser module
 
 import pandas as pd
 
-from ibkr_tax.parsers.data_parser import (
+from ibkr_toolkit.parsers.data_parser import (
     calculate_summary,
     parse_dividends,
     parse_trades,

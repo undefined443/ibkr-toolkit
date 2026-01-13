@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-from ibkr_tax.cli import (
+from ibkr_toolkit.cli import (
     _convert_date_columns,
     _format_column_names,
     _sort_by_date_time,
@@ -132,8 +132,8 @@ def test_format_column_names_preserves_data():
     assert list(result["symbol"]) == ["AAPL", "TSLA"]
 
 
-@patch("ibkr_tax.cli._format_sheet")
-@patch("ibkr_tax.cli._merge_summary_categories")
+@patch("ibkr_toolkit.cli._format_sheet")
+@patch("ibkr_toolkit.cli._merge_summary_categories")
 def test_export_to_excel_success(mock_merge, mock_format, tmp_path):
     """Test successful Excel export"""
     trades_df = pd.DataFrame(
@@ -187,8 +187,8 @@ def test_export_to_excel_success(mock_merge, mock_format, tmp_path):
     assert filepath.exists()
 
 
-@patch("ibkr_tax.cli._format_sheet")
-@patch("ibkr_tax.cli._merge_summary_categories")
+@patch("ibkr_toolkit.cli._format_sheet")
+@patch("ibkr_toolkit.cli._merge_summary_categories")
 def test_export_to_excel_empty_dataframes(mock_merge, mock_format, tmp_path):
     """Test Excel export with empty dataframes"""
     trades_df = pd.DataFrame()
@@ -216,7 +216,7 @@ def test_export_to_excel_empty_dataframes(mock_merge, mock_format, tmp_path):
     assert filepath.exists()
 
 
-@patch("ibkr_tax.cli.pd.ExcelWriter")
+@patch("ibkr_toolkit.cli.pd.ExcelWriter")
 def test_export_to_excel_io_error(mock_writer):
     """Test Excel export handles IO error"""
     mock_writer.side_effect = Exception("Permission denied")

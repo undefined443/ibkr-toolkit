@@ -4,7 +4,7 @@ Tests for investment performance calculation
 
 import pandas as pd
 
-from ibkr_tax.parsers.data_parser import (
+from ibkr_toolkit.parsers.data_parser import (
     calculate_performance,
     parse_cash_report,
     parse_open_positions,

@@ -2,7 +2,7 @@
 
 ## 概述
 
-IBKR Tax Tool 现在支持**移动止损 (Trailing Stop Loss)** 功能，可以自动监控你的持仓并在触发止损条件时发送提醒或自动下单。
+IBKR Toolkit 现在支持**移动止损 (Trailing Stop Loss)** 功能，可以自动监控你的持仓并在触发止损条件时发送提醒或自动下单。
 
 ## 功能特性
 
@@ -110,7 +110,7 @@ ibkr-stop-loss check --email
 crontab -e
 
 # 添加定时任务: 每天 9:30 和 15:30 检查 (美股开盘和收盘前)
-30 9,15 * * 1-5 cd /path/to/ibkr-tax && uv run ibkr-stop-loss check --email
+30 9,15 * * 1-5 cd /path/to/ibkr-toolkit && uv run ibkr-stop-loss check --email
 ```
 
 #### 3. 查看当前配置

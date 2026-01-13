@@ -1,9 +1,9 @@
 [project]
-name = "ibkr-tax"
+name = "ibkr-toolkit"
 version = "0.1.0"
-description = "A tool for fetching and processing IBKR trading data for Chinese tax filing"
+description = "A comprehensive toolkit for IBKR trading data processing and management"
 authors = [
-    {name = "IBKR Tax Tool Contributors"}
+    {name = "IBKR Toolkit Contributors"}
 ]
 readme = "README.md"
 license = {text = "MIT"}
@@ -28,13 +28,13 @@ dev = [
 ]
 
 [project.scripts]
-ibkr-tax = "ibkr_tax.cli:main"
-ibkr-stop-loss = "ibkr_tax.stop_loss_cli:main"
+ibkr-toolkit = "ibkr_toolkit.cli:main"
+ibkr-toolkit-stop-loss = "ibkr_toolkit.stop_loss_cli:main"
 
 [project.urls]
-Homepage = "https://github.com/yourusername/ibkr-tax"
-Repository = "https://github.com/yourusername/ibkr-tax"
-Documentation = "https://github.com/yourusername/ibkr-tax/blob/main/README.md"
+Homepage = "https://github.com/undefined443/ibkr-toolkit"
+Repository = "https://github.com/undefined443/ibkr-toolkit"
+Documentation = "https://github.com/undefined443/ibkr-toolkit/blob/main/README.md"
 
 [build-system]
 requires = ["setuptools>=65.0", "wheel"]
@@ -59,7 +59,7 @@ testpaths = ["tests"]
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
-addopts = "-v --cov=ibkr_tax --cov-report=term-missing"
+addopts = "-v --cov=ibkr_toolkit --cov-report=term-missing"
 
 [dependency-groups]
 dev = [

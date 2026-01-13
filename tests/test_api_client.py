@@ -7,8 +7,8 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from ibkr_tax.api.flex_query import FlexQueryClient
-from ibkr_tax.exceptions import APIError
+from ibkr_toolkit.api.flex_query import FlexQueryClient
+from ibkr_toolkit.exceptions import APIError
 
 
 def test_client_initialization():
@@ -30,8 +30,8 @@ def test_client_initialization_empty_query_id():
         FlexQueryClient("test_token", "")
 
 
-@patch("ibkr_tax.api.flex_query.requests.get")
-@patch("ibkr_tax.api.flex_query.xmltodict.parse")
+@patch("ibkr_toolkit.api.flex_query.requests.get")
+@patch("ibkr_toolkit.api.flex_query.xmltodict.parse")
 def test_request_report_success(mock_parse, mock_get):
     """Test successful report request"""
     mock_response = Mock()
@@ -50,8 +50,8 @@ def test_request_report_success(mock_parse, mock_get):
     mock_get.assert_called_once()
 
 
-@patch("ibkr_tax.api.flex_query.requests.get")
-@patch("ibkr_tax.api.flex_query.xmltodict.parse")
+@patch("ibkr_toolkit.api.flex_query.requests.get")
+@patch("ibkr_toolkit.api.flex_query.xmltodict.parse")
 def test_request_report_failure(mock_parse, mock_get):
     """Test failed report request"""
     mock_response = Mock()
@@ -69,7 +69,7 @@ def test_request_report_failure(mock_parse, mock_get):
         client.request_report()
 
 
-@patch("ibkr_tax.api.flex_query.requests.get")
+@patch("ibkr_toolkit.api.flex_query.requests.get")
 def test_request_report_network_error(mock_get):
     """Test report request with network error"""
     mock_get.side_effect = requests.RequestException("Network error")
@@ -80,8 +80,8 @@ def test_request_report_network_error(mock_get):
         client.request_report()
 
 
-@patch("ibkr_tax.api.flex_query.requests.get")
-@patch("ibkr_tax.api.flex_query.xmltodict.parse")
+@patch("ibkr_toolkit.api.flex_query.requests.get")
+@patch("ibkr_toolkit.api.flex_query.xmltodict.parse")
 def test_request_report_with_date_params(mock_parse, mock_get):
     """Test report request with date parameters"""
     mock_response = Mock()
@@ -102,9 +102,9 @@ def test_request_report_with_date_params(mock_parse, mock_get):
     assert call_params["td"] == "20250131"
 
 
-@patch("ibkr_tax.api.flex_query.requests.get")
-@patch("ibkr_tax.api.flex_query.xmltodict.parse")
-@patch("ibkr_tax.api.flex_query.time.sleep")
+@patch("ibkr_toolkit.api.flex_query.requests.get")
+@patch("ibkr_toolkit.api.flex_query.xmltodict.parse")
+@patch("ibkr_toolkit.api.flex_query.time.sleep")
 def test_get_report_retry_on_not_ready(mock_sleep, mock_parse, mock_get):
     """Test get_report retries when report is not ready"""
     mock_response = Mock()
@@ -142,9 +142,9 @@ def test_get_report_retry_on_not_ready(mock_sleep, mock_parse, mock_get):
     assert mock_sleep.call_count == 2
 
 
-@patch("ibkr_tax.api.flex_query.requests.get")
-@patch("ibkr_tax.api.flex_query.xmltodict.parse")
-@patch("ibkr_tax.api.flex_query.time.sleep")
+@patch("ibkr_toolkit.api.flex_query.requests.get")
+@patch("ibkr_toolkit.api.flex_query.xmltodict.parse")
+@patch("ibkr_toolkit.api.flex_query.time.sleep")
 def test_get_report_timeout_after_max_retries(mock_sleep, mock_parse, mock_get):
     """Test get_report raises error after max retries"""
     mock_response = Mock()
@@ -168,8 +168,8 @@ def test_get_report_timeout_after_max_retries(mock_sleep, mock_parse, mock_get):
     assert mock_get.call_count == 3
 
 
-@patch("ibkr_tax.api.flex_query.requests.get")
-@patch("ibkr_tax.api.flex_query.xmltodict.parse")
+@patch("ibkr_toolkit.api.flex_query.requests.get")
+@patch("ibkr_toolkit.api.flex_query.xmltodict.parse")
 def test_get_report_multiple_accounts(mock_parse, mock_get):
     """Test get_report with multiple accounts"""
     mock_response = Mock()
@@ -191,7 +191,7 @@ def test_get_report_multiple_accounts(mock_parse, mock_get):
     assert len(result) == 2
 
 
-@patch("ibkr_tax.api.flex_query.requests.get")
+@patch("ibkr_toolkit.api.flex_query.requests.get")
 def test_get_report_network_retry(mock_get):
     """Test get_report retries on network error"""
     # First call fails, second succeeds
@@ -214,16 +214,16 @@ def test_get_report_network_retry(mock_get):
 
     client = FlexQueryClient("test_token", "test_query")
 
-    with patch("ibkr_tax.api.flex_query.time.sleep"):
+    with patch("ibkr_toolkit.api.flex_query.time.sleep"):
         result = client.get_report("REF123", max_retries=3)
 
     assert result is not None
     assert mock_get.call_count == 2
 
 
-@patch("ibkr_tax.api.flex_query.FlexQueryClient.request_report")
-@patch("ibkr_tax.api.flex_query.FlexQueryClient.get_report")
-@patch("ibkr_tax.api.flex_query.time.sleep")
+@patch("ibkr_toolkit.api.flex_query.FlexQueryClient.request_report")
+@patch("ibkr_toolkit.api.flex_query.FlexQueryClient.get_report")
+@patch("ibkr_toolkit.api.flex_query.time.sleep")
 def test_fetch_data_complete_workflow(mock_sleep, mock_get_report, mock_request_report):
     """Test fetch_data complete workflow"""
     mock_request_report.return_value = "REF123"

@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 import requests
 
-from ibkr_tax.services.exchange_rate import ExchangeRateService, get_exchange_rate_service
+from ibkr_toolkit.services.exchange_rate import ExchangeRateService, get_exchange_rate_service
 
 
 def test_load_cache_from_file(tmp_path):
@@ -90,7 +90,7 @@ def test_get_rate_normalizes_date_format(tmp_path):
     assert rate == 7.5
 
 
-@patch("ibkr_tax.services.exchange_rate.requests.get")
+@patch("ibkr_toolkit.services.exchange_rate.requests.get")
 def test_get_rate_fetches_from_api(mock_get, tmp_path):
     """Test fetching rate from API when not in cache"""
     cache_file = tmp_path / "cache.json"
@@ -107,7 +107,7 @@ def test_get_rate_fetches_from_api(mock_get, tmp_path):
     assert service.cache["2025-01-01"] == 7.25
 
 
-@patch("ibkr_tax.services.exchange_rate.requests.get")
+@patch("ibkr_toolkit.services.exchange_rate.requests.get")
 def test_get_rate_uses_default_when_api_fails(mock_get, tmp_path):
     """Test using default rate when API fails"""
     cache_file = tmp_path / "cache.json"
@@ -121,7 +121,7 @@ def test_get_rate_uses_default_when_api_fails(mock_get, tmp_path):
     assert service.cache["2025-01-01"] == 7.2
 
 
-@patch("ibkr_tax.services.exchange_rate.requests.get")
+@patch("ibkr_toolkit.services.exchange_rate.requests.get")
 def test_fetch_from_exchangerate_api_success(mock_get, tmp_path):
     """Test successful fetch from exchangerate-api.com"""
     cache_file = tmp_path / "cache.json"
@@ -133,13 +133,13 @@ def test_fetch_from_exchangerate_api_success(mock_get, tmp_path):
     mock_response.raise_for_status = Mock()
     mock_get.return_value = mock_response
 
-    with patch("ibkr_tax.services.exchange_rate.time.sleep"):
+    with patch("ibkr_toolkit.services.exchange_rate.time.sleep"):
         rate = service._fetch_from_exchangerate_api("2025-01-01")
 
     assert rate == 7.28
 
 
-@patch("ibkr_tax.services.exchange_rate.requests.get")
+@patch("ibkr_toolkit.services.exchange_rate.requests.get")
 def test_fetch_from_exchangerate_api_failure(mock_get, tmp_path):
     """Test failed fetch from exchangerate-api.com"""
     cache_file = tmp_path / "cache.json"
@@ -147,13 +147,13 @@ def test_fetch_from_exchangerate_api_failure(mock_get, tmp_path):
 
     mock_get.side_effect = requests.RequestException("Timeout")
 
-    with patch("ibkr_tax.services.exchange_rate.time.sleep"):
+    with patch("ibkr_toolkit.services.exchange_rate.time.sleep"):
         rate = service._fetch_from_exchangerate_api("2025-01-01")
 
     assert rate is None
 
 
-@patch("ibkr_tax.services.exchange_rate.requests.get")
+@patch("ibkr_toolkit.services.exchange_rate.requests.get")
 def test_fetch_from_frankfurter_success(mock_get, tmp_path):
     """Test successful fetch from Frankfurter API"""
     cache_file = tmp_path / "cache.json"
@@ -169,7 +169,7 @@ def test_fetch_from_frankfurter_success(mock_get, tmp_path):
     assert rate == 7.32
 
 
-@patch("ibkr_tax.services.exchange_rate.requests.get")
+@patch("ibkr_toolkit.services.exchange_rate.requests.get")
 def test_fetch_from_frankfurter_failure(mock_get, tmp_path):
     """Test failed fetch from Frankfurter API"""
     cache_file = tmp_path / "cache.json"
@@ -184,7 +184,7 @@ def test_fetch_from_frankfurter_failure(mock_get, tmp_path):
     assert rate is None
 
 
-@patch("ibkr_tax.services.exchange_rate.requests.get")
+@patch("ibkr_toolkit.services.exchange_rate.requests.get")
 def test_fetch_rate_from_api_tries_multiple_sources(mock_get, tmp_path):
     """Test API fallback chain when first API fails"""
     cache_file = tmp_path / "cache.json"
@@ -209,7 +209,7 @@ def test_fetch_rate_from_api_tries_multiple_sources(mock_get, tmp_path):
     assert mock_get.call_count == 2
 
 
-@patch("ibkr_tax.services.exchange_rate.requests.get")
+@patch("ibkr_toolkit.services.exchange_rate.requests.get")
 def test_get_monthly_average_rate(mock_get, tmp_path):
     """Test calculating monthly average rate"""
     cache_file = tmp_path / "cache.json"
@@ -224,7 +224,7 @@ def test_get_monthly_average_rate(mock_get, tmp_path):
 
     mock_get.side_effect = mock_api_response
 
-    with patch("ibkr_tax.services.exchange_rate.time.sleep"):
+    with patch("ibkr_toolkit.services.exchange_rate.time.sleep"):
         avg_rate = service.get_monthly_average_rate(2025, 1, default_rate=7.0)
 
     assert avg_rate == 7.2
@@ -250,7 +250,7 @@ def test_get_monthly_average_rate_uses_cache(tmp_path):
     assert abs(avg_rate - expected_avg) < 0.01
 
 
-@patch("ibkr_tax.services.exchange_rate.requests.get")
+@patch("ibkr_toolkit.services.exchange_rate.requests.get")
 def test_get_rates_for_dataframe(mock_get, tmp_path):
     """Test batch fetching rates for multiple dates"""
     cache_file = tmp_path / "cache.json"
@@ -263,7 +263,7 @@ def test_get_rates_for_dataframe(mock_get, tmp_path):
 
     dates = ["20250101", "20250102", "20250103"]
 
-    with patch("ibkr_tax.services.exchange_rate.time.sleep"):
+    with patch("ibkr_toolkit.services.exchange_rate.time.sleep"):
         rates = service.get_rates_for_dataframe(dates, default_rate=7.2)
 
     assert len(rates) == 3

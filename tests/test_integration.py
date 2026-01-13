@@ -6,8 +6,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from ibkr_tax.api.flex_query import FlexQueryClient
-from ibkr_tax.parsers.data_parser import (
+from ibkr_toolkit.api.flex_query import FlexQueryClient
+from ibkr_toolkit.parsers.data_parser import (
     calculate_summary,
     parse_dividends,
     parse_trades,
@@ -118,9 +118,9 @@ def test_calculate_summary_integration(mock_flex_data_complete):
     assert "China_Tax_Calculation" in summary
 
 
-@patch("ibkr_tax.api.flex_query.requests.get")
-@patch("ibkr_tax.api.flex_query.xmltodict.parse")
-@patch("ibkr_tax.api.flex_query.time.sleep")
+@patch("ibkr_toolkit.api.flex_query.requests.get")
+@patch("ibkr_toolkit.api.flex_query.xmltodict.parse")
+@patch("ibkr_toolkit.api.flex_query.time.sleep")
 def test_api_to_parser_integration(mock_sleep, mock_parse, mock_get, mock_flex_data_complete):
     """Test integration from API fetch to data parsing"""
     mock_response = Mock()

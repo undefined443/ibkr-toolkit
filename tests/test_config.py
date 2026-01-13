@@ -6,8 +6,8 @@ from unittest.mock import patch
 
 import pytest
 
-from ibkr_tax.config import Config
-from ibkr_tax.exceptions import ConfigurationError
+from ibkr_toolkit.config import Config
+from ibkr_toolkit.exceptions import ConfigurationError
 
 
 def test_config_with_valid_env(mock_env):
@@ -19,7 +19,7 @@ def test_config_with_valid_env(mock_env):
     assert config.use_dynamic_rates is False
 
 
-@patch("ibkr_tax.config.load_dotenv")
+@patch("ibkr_toolkit.config.load_dotenv")
 def test_config_missing_token(mock_load_dotenv, monkeypatch):
     """Test configuration fails without token"""
     # Prevent loading from .env file
@@ -32,7 +32,7 @@ def test_config_missing_token(mock_load_dotenv, monkeypatch):
         Config()
 
 
-@patch("ibkr_tax.config.load_dotenv")
+@patch("ibkr_toolkit.config.load_dotenv")
 def test_config_missing_query_id(mock_load_dotenv, monkeypatch):
     """Test configuration fails without query ID"""
     # Prevent loading from .env file

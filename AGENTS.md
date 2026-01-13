@@ -8,16 +8,16 @@ This file provides guidance to Qoder (qoder.com) when working with code in this 
 
 ```bash
 # Run the tool (uses default date range from Flex Query)
-uv run ibkr-tax
+uv run ibkr-toolkit
 
 # Run with specific year (recommended for tax reporting)
-uv run ibkr-tax --year 2025
+uv run ibkr-toolkit --year 2025
 
 # Run from a starting year to current year
-uv run ibkr-tax --from-year 2020
+uv run ibkr-toolkit --from-year 2020
 
 # Run all data from FIRST_TRADE_YEAR (in .env) to current
-uv run ibkr-tax --all
+uv run ibkr-toolkit --all
 ```
 
 ### Testing

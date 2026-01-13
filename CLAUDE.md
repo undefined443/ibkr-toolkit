@@ -1,10 +1,10 @@
-# IBKR Tax Tool - 项目开发指南
+# IBKR Toolkit - 项目开发指南
 
 本文档为项目开发者和 AI 助手提供项目特定的约定和指南。
 
 ## 项目概述
 
-IBKR Tax Tool 是一个用于从 Interactive Brokers 获取交易数据并生成中国税务申报报表的 Python 工具。
+IBKR Toolkit 是一个用于从 Interactive Brokers 获取交易数据并生成中国税务申报报表的 Python 工具。
 
 ## 技术栈
 
@@ -50,7 +50,7 @@ def fetch_data(self, from_date: str = None, to_date: str = None) -> Union[Dict[s
 ## 项目结构
 
 ```
-ibkr-tax/
+ibkr-toolkit/
 ├── src/ibkr_tax/
 │   ├── api/
 │   │   └── flex_query.py       # IBKR Flex Query API 客户端
@@ -160,7 +160,7 @@ ibkr-tax/
 ```bash
 # 克隆项目
 git clone <repository>
-cd ibkr-tax
+cd ibkr-toolkit
 
 # 安装依赖（开发模式）
 uv pip install -e .
@@ -238,19 +238,19 @@ uv run pre-commit autoupdate
 
 ```bash
 # 使用默认配置（Flex Query 日期范围）
-uv run ibkr-tax
+uv run ibkr-toolkit
 
 # 指定单个年份
-uv run ibkr-tax --year 2025
+uv run ibkr-toolkit --year 2025
 
 # 从指定年份查询到现在
-uv run ibkr-tax --from-year 2020
+uv run ibkr-toolkit --from-year 2020
 
 # 查询所有数据（从 FIRST_TRADE_YEAR 到现在）
-uv run ibkr-tax --all
+uv run ibkr-toolkit --all
 
 # 查看帮助
-uv run ibkr-tax --help
+uv run ibkr-toolkit --help
 ```
 
 ## 常见开发任务
@@ -298,16 +298,16 @@ logger = setup_logger("ibkr_tax", level="DEBUG", console=True)
 
 ```bash
 # 测试特定年份
-uv run ibkr-tax --year 2024
+uv run ibkr-toolkit --year 2024
 
 # 测试当前年份
-uv run ibkr-tax --year $(date +%Y)
+uv run ibkr-toolkit --year $(date +%Y)
 
 # 测试多年查询
-uv run ibkr-tax --from-year 2023
+uv run ibkr-toolkit --from-year 2023
 
 # 测试所有数据查询
-uv run ibkr-tax --all
+uv run ibkr-toolkit --all
 ```
 
 ### 验证多年查询
