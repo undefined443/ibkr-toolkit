@@ -60,8 +60,8 @@ def create_parser() -> argparse.ArgumentParser:
     # Stop-loss subcommand
     stop_loss_parser = subparsers.add_parser(
         "stop-loss",
-        help="Manage trailing stop-loss for your positions",
-        description="Manage trailing stop-loss for your positions",
+        help="Place and manage trailing stop orders in IB system",
+        description="Place and manage trailing stop orders in IB system",
     )
     stop_loss_subparsers = stop_loss_parser.add_subparsers(
         title="stop-loss commands",
@@ -70,32 +70,6 @@ def create_parser() -> argparse.ArgumentParser:
         required=True,
         help="Stop-loss command to execute",
     )
-
-    # Check command
-    check_parser = stop_loss_subparsers.add_parser(
-        "check", help="Check all positions for stop-loss triggers"
-    )
-    check_parser.add_argument(
-        "--email", action="store_true", help="Send email notification if stop-loss triggered"
-    )
-    check_parser.add_argument(
-        "--auto-execute",
-        action="store_true",
-        help="Automatically execute stop-loss orders (use with caution!)",
-    )
-
-    # Set command
-    set_parser = stop_loss_subparsers.add_parser("set", help="Set trailing stop-loss for a symbol")
-    set_parser.add_argument("symbol", help="Stock symbol (e.g., AAPL)")
-    set_parser.add_argument(
-        "--percent",
-        type=float,
-        required=True,
-        help="Trailing stop-loss percentage (e.g., 5.0 for 5%%)",
-    )
-
-    # List command
-    stop_loss_subparsers.add_parser("list", help="List all stop-loss configurations")
 
     # Place command - place trailing stop orders in IB system
     place_parser = stop_loss_subparsers.add_parser(
@@ -179,14 +153,7 @@ def main() -> None:
 
         # Pass arguments to stop-loss main
         sys.argv = ["ibkr-toolkit-stop-loss", args.stop_loss_command]
-        if args.stop_loss_command == "check":
-            if args.email:
-                sys.argv.append("--email")
-            if args.auto_execute:
-                sys.argv.append("--auto-execute")
-        elif args.stop_loss_command == "set":
-            sys.argv.extend([args.symbol, "--percent", str(args.percent)])
-        elif args.stop_loss_command == "place":
+        if args.stop_loss_command == "place":
             sys.argv.extend([args.account, "--percent", str(args.percent)])
             if args.symbols:
                 sys.argv.extend(["--symbols"] + args.symbols)

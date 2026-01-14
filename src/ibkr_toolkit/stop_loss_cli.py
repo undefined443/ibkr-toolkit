@@ -10,8 +10,6 @@ from typing import List, Optional
 from .api.trading_client import TradingClient
 from .config import Config
 from .exceptions import APIError, ConfigurationError, IBKRTaxError
-from .services.notification import EmailNotifier
-from .services.stop_loss import StopLossChecker, StopLossManager
 from .utils.logging import setup_logger
 
 
@@ -21,233 +19,6 @@ def print_banner() -> None:
     print("IBKR Stop Loss Manager")
     print("=" * 60)
     print()
-
-
-def print_results(results: list) -> None:
-    """
-    Print stop-loss check results
-
-    Args:
-        results: List of check results from StopLossChecker
-    """
-    if not results:
-        print("\nNo positions to check")
-        return
-
-    print("\n" + "=" * 80)
-    print("Stop Loss Check Results")
-    print("=" * 80)
-
-    # Print summary
-    triggered_count = sum(1 for r in results if r["triggered"])
-    total_positions = len(results)
-    total_unrealized_pnl = sum(r["unrealized_pnl"] for r in results)
-
-    print(f"\nTotal positions: {total_positions}")
-    print(f"Stop loss triggered: {triggered_count}")
-    print(f"Total unrealized P&L: ${total_unrealized_pnl:+,.2f}")
-
-    # Print triggered positions
-    if triggered_count > 0:
-        print("\n" + "=" * 80)
-        print("TRIGGERED Positions:")
-        print("=" * 80)
-        print(
-            f"{'Symbol':<10} {'Qty':>8} {'Avg Cost':>10} {'Current':>10} "
-            f"{'Stop':>10} {'Unreal P&L':>12} {'Action'}"
-        )
-        print("-" * 80)
-
-        for r in results:
-            if r["triggered"]:
-                print(
-                    f"{r['symbol']:<10} {r['quantity']:>8} "
-                    f"${r['avg_cost']:>9.2f} ${r['current_price']:>9.2f} "
-                    f"${r['stop_price']:>9.2f} ${r['unrealized_pnl']:>+11.2f} "
-                    f"{r.get('action_taken', 'Manual order suggested')}"
-                )
-
-    # Print all positions
-    print("\n" + "=" * 80)
-    print("All Positions:")
-    print("=" * 80)
-    print(
-        f"{'Symbol':<10} {'Current':>10} {'Stop':>10} {'Unreal P&L':>12} {'P&L %':>10} {'Status'}"
-    )
-    print("-" * 80)
-
-    for r in results:
-        status = "TRIGGERED" if r["triggered"] else "OK"
-        print(
-            f"{r['symbol']:<10} ${r['current_price']:>9.2f} "
-            f"${r['stop_price']:>9.2f} ${r['unrealized_pnl']:>+11.2f} "
-            f"{r['pnl_percent']:>+9.2f}% {status}"
-        )
-
-
-def check_stop_loss(
-    config: Config,
-    auto_execute: bool = False,
-    send_email: bool = False,
-    logger: Optional[any] = None,
-) -> None:
-    """
-    Check stop-loss conditions for all positions
-
-    Args:
-        config: Configuration object
-        auto_execute: Whether to automatically execute stop-loss orders
-        send_email: Whether to send email notification
-        logger: Logger instance
-    """
-    if logger is None:
-        logger = setup_logger("stop_loss", level="INFO", console=True)
-
-    # Initialize trading client
-    logger.info("Connecting to IBKR Gateway...")
-    trading_client = TradingClient(
-        host=config.ibkr_gateway_host,
-        port=config.ibkr_gateway_port,
-        client_id=config.ibkr_client_id,
-    )
-
-    # Initialize stop-loss manager
-    stop_loss_manager = StopLossManager()
-
-    try:
-        # Connect to IBKR
-        trading_client.connect()
-
-        # Create checker
-        checker = StopLossChecker(
-            trading_client=trading_client,
-            stop_loss_manager=stop_loss_manager,
-            default_trailing_percent=config.default_trailing_stop_percent,
-        )
-
-        # Check positions
-        logger.info("Checking stop-loss conditions for positions...")
-        results = checker.check_positions(auto_execute=auto_execute)
-
-        # Print results
-        print_results(results)
-
-        # Send email notification if configured
-        if send_email and any(r["triggered"] for r in results):
-            logger.info("Sending email notification...")
-            try:
-                # Check if email is configured
-                if not all(
-                    [
-                        config.smtp_host,
-                        config.smtp_port,
-                        config.smtp_user,
-                        config.smtp_password,
-                        config.email_from,
-                        config.email_to,
-                    ]
-                ):
-                    logger.warning("Email configuration incomplete, skipping notification")
-                else:
-                    notifier = EmailNotifier(
-                        smtp_host=config.smtp_host,
-                        smtp_port=config.smtp_port,
-                        smtp_user=config.smtp_user,
-                        smtp_password=config.smtp_password,
-                        from_email=config.email_from,
-                        to_emails=config.email_to,
-                        use_tls=config.smtp_use_tls,
-                    )
-                    notifier.send_stop_loss_alert(results)
-            except ConfigurationError as e:
-                logger.warning(f"Email notification failed: {e}")
-
-    finally:
-        trading_client.disconnect()
-
-
-def set_trailing_stop(
-    config: Config, symbol: str, trailing_percent: float, logger: Optional[any] = None
-) -> None:
-    """
-    Set trailing stop-loss for a specific symbol
-
-    Args:
-        config: Configuration object
-        symbol: Stock symbol
-        trailing_percent: Trailing percentage (e.g., 5.0 for 5%)
-        logger: Logger instance
-    """
-    if logger is None:
-        logger = setup_logger("stop_loss", level="INFO", console=True)
-
-    # Initialize trading client
-    logger.info("Connecting to IBKR Gateway...")
-    trading_client = TradingClient(
-        host=config.ibkr_gateway_host,
-        port=config.ibkr_gateway_port,
-        client_id=config.ibkr_client_id,
-    )
-
-    # Initialize stop-loss manager
-    stop_loss_manager = StopLossManager()
-
-    try:
-        # Connect to IBKR
-        trading_client.connect()
-
-        # Get current price
-        logger.info(f"Getting current price for {symbol}...")
-        current_price = trading_client.get_market_price(symbol)
-
-        if current_price is None:
-            logger.error(f"Unable to get price for {symbol}")
-            return
-
-        # Set trailing stop
-        config_obj = stop_loss_manager.set_trailing_stop(symbol, current_price, trailing_percent)
-
-        print(f"\nTrailing stop set for {symbol}:")
-        print(f"  Current price: ${current_price:.2f}")
-        print(f"  Stop percentage: {trailing_percent}%")
-        print(f"  Stop price: ${config_obj.stop_price:.2f}")
-        print()
-
-    finally:
-        trading_client.disconnect()
-
-
-def list_stop_loss_configs(logger: Optional[any] = None) -> None:
-    """
-    List all stop-loss configurations
-
-    Args:
-        logger: Logger instance
-    """
-    if logger is None:
-        logger = setup_logger("stop_loss", level="INFO", console=True)
-
-    # Initialize stop-loss manager
-    stop_loss_manager = StopLossManager()
-
-    configs = stop_loss_manager.get_all_configs()
-
-    if not configs:
-        print("\nNo stop-loss configurations set")
-        return
-
-    print("\n" + "=" * 80)
-    print("Current Stop-Loss Configurations:")
-    print("=" * 80)
-    print(f"{'Symbol':<10} {'Peak Price':>12} {'Stop Price':>12} {'Stop %':>12} {'Last Updated'}")
-    print("-" * 80)
-
-    for symbol, config in configs.items():
-        print(
-            f"{symbol:<10} ${config.peak_price:>11.2f} "
-            f"${config.stop_price:>11.2f} {config.trailing_percent:>11.1f}% "
-            f"{config.last_updated}"
-        )
 
 
 def place_trailing_stop_orders(
@@ -270,9 +41,7 @@ def place_trailing_stop_orders(
     if logger is None:
         logger = setup_logger("stop_loss", level="INFO", console=True)
 
-    from .api.trading_client import TradingClient
-
-    logger.info("正在连接到 IBKR Gateway...")
+    logger.info("Connecting to IBKR Gateway...")
 
     # Connect to IB Gateway
     client = TradingClient(
@@ -354,8 +123,6 @@ def place_trailing_stop_buy_orders(
     """
     if logger is None:
         logger = setup_logger("stop_loss", level="INFO", console=True)
-
-    from .api.trading_client import TradingClient
 
     logger.info("Connecting to IBKR Gateway...")
 
@@ -447,9 +214,7 @@ def view_open_orders(
     if logger is None:
         logger = setup_logger("stop_loss", level="INFO", console=True)
 
-    from .api.trading_client import TradingClient
-
-    logger.info("正在连接到 IBKR Gateway...")
+    logger.info("Connecting to IBKR Gateway...")
 
     # Connect to IB Gateway
     client = TradingClient(
@@ -547,18 +312,16 @@ def cancel_trailing_stop_orders(
         print("  # Cancel specific orders")
         print("  ibkr-toolkit stop-loss cancel 15 12")
         print("\n  # Cancel all orders for account")
-        print("  ibkr-toolkit stop-loss cancel --account U13900978")
+        print("  ibkr-toolkit stop-loss cancel --account U12345678")
         print("\n  # Cancel orders for specific symbols in account")
-        print("  ibkr-toolkit stop-loss cancel --account U13900978 --symbols AAPL TSLA")
+        print("  ibkr-toolkit stop-loss cancel --account U12345678 --symbols AAPL TSLA")
         sys.exit(1)
 
     if symbols and not account:
         print("\nError: --symbols parameter requires --account")
         sys.exit(1)
 
-    from .api.trading_client import TradingClient
-
-    logger.info("正在连接到 IBKR Gateway...")
+    logger.info("Connecting to IBKR Gateway...")
 
     # Connect to IB Gateway
     client = TradingClient(
@@ -645,62 +408,50 @@ def parse_args() -> argparse.Namespace:
         Parsed arguments
     """
     parser = argparse.ArgumentParser(
-        description="IBKR Stop Loss Manager - Manage trailing stop strategies",
+        description="IBKR Stop Loss Manager - Place and manage trailing stop orders",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
 
-  # Check stop-loss conditions for all positions
-  ibkr-stop-loss check
+  # Place trailing stop SELL orders for account (all positions)
+  ibkr-toolkit stop-loss place U12345678 --percent 5.0
 
-  # Check and auto-execute stop-loss orders
-  ibkr-stop-loss check --auto-execute
+  # Place trailing stop SELL orders for specific symbols
+  ibkr-toolkit stop-loss place U12345678 --percent 5.0 --symbols AAPL TSLA
 
-  # Check and send email notification
-  ibkr-stop-loss check --email
+  # Place trailing stop BUY orders (buy-on-dip strategy)
+  ibkr-toolkit stop-loss place-buy U12345678 --percent 5.0 --symbols AAPL TSLA
 
-  # Set 5% trailing stop for specific stock
-  ibkr-stop-loss set AAPL --percent 5.0
+  # View active orders
+  ibkr-toolkit stop-loss orders
 
-  # View all stop-loss configurations
-  ibkr-stop-loss list
+  # View orders for specific account
+  ibkr-toolkit stop-loss orders --account U12345678
+
+  # Cancel specific orders by ID
+  ibkr-toolkit stop-loss cancel 15 12
+
+  # Cancel all orders for account
+  ibkr-toolkit stop-loss cancel --account U12345678
+
+  # Cancel orders for specific symbols
+  ibkr-toolkit stop-loss cancel --account U12345678 --symbols AAPL TSLA
 
 Note:
   - TWS or IB Gateway must be running before use
   - Default ports: 7497 (TWS Paper), 4002 (IB Gateway Paper)
   - Connection parameters can be configured in .env file
+  - All orders are placed directly in IB system (24/7 monitoring)
         """,
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Subcommands")
 
-    # Check command
-    check_parser = subparsers.add_parser("check", help="Check stop-loss conditions for positions")
-    check_parser.add_argument(
-        "--auto-execute",
-        action="store_true",
-        help="Auto-execute stop-loss orders (use with caution)",
-    )
-    check_parser.add_argument("--email", action="store_true", help="Send email notification")
-
-    # Set command
-    set_parser = subparsers.add_parser("set", help="Set trailing stop")
-    set_parser.add_argument("symbol", help="Stock symbol (e.g., AAPL)")
-    set_parser.add_argument(
-        "--percent",
-        type=float,
-        default=5.0,
-        help="Stop percentage (default: 5.0, triggers on 5%% price drop)",
-    )
-
-    # List command
-    subparsers.add_parser("list", help="View all stop-loss configurations")
-
-    # Place command - place trailing stop orders in IB system
+    # Place command - place trailing stop SELL orders in IB system
     place_parser = subparsers.add_parser(
-        "place", help="Place trailing stop orders in IB system for account"
+        "place", help="Place trailing stop SELL orders in IB system for account"
     )
-    place_parser.add_argument("account", help="Account ID (e.g., U13900978)")
+    place_parser.add_argument("account", help="Account ID (e.g., U12345678)")
     place_parser.add_argument(
         "--percent",
         type=float,
@@ -717,7 +468,7 @@ Note:
     place_buy_parser = subparsers.add_parser(
         "place-buy", help="Place trailing stop BUY orders for specific symbols"
     )
-    place_buy_parser.add_argument("account", help="Account ID (e.g., U13900978)")
+    place_buy_parser.add_argument("account", help="Account ID (e.g., U12345678)")
     place_buy_parser.add_argument(
         "--percent",
         type=float,
@@ -758,7 +509,7 @@ def main() -> None:
     args = parse_args()
 
     if not args.command:
-        print("Error: Please specify a subcommand (check, set, list, place, orders, cancel)")
+        print("Error: Please specify a subcommand (place, place-buy, orders, cancel)")
         print("Use --help for help")
         sys.exit(1)
 
@@ -782,23 +533,7 @@ def main() -> None:
             sys.exit(1)
 
         # Execute command
-        if args.command == "check":
-            check_stop_loss(
-                config=config,
-                auto_execute=args.auto_execute,
-                send_email=args.email,
-                logger=logger,
-            )
-        elif args.command == "set":
-            set_trailing_stop(
-                config=config,
-                symbol=args.symbol.upper(),
-                trailing_percent=args.percent,
-                logger=logger,
-            )
-        elif args.command == "list":
-            list_stop_loss_configs(logger=logger)
-        elif args.command == "place":
+        if args.command == "place":
             place_trailing_stop_orders(
                 config=config,
                 account=args.account,

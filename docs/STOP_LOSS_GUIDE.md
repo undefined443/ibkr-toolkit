@@ -2,15 +2,15 @@
 
 ## 概述
 
-IBKR Toolkit 现在支持**移动止损 (Trailing Stop Loss)** 功能，可以自动监控你的持仓并在触发止损条件时发送提醒或自动下单。
+IBKR Toolkit 提供**追踪止损 (Trailing Stop)** 订单管理功能，可以直接在 IBKR 系统中为你的持仓下追踪止损单，实现自动止损保护。
 
 ## 功能特性
 
-- **移动止损策略**: 止损价随股价上涨自动上移，保护已实现利润
-- **手动触发检查**: 按需检查持仓，不需要常驻后台
-- **邮件通知**: 触发止损时自动发送邮件提醒
-- **灵活配置**: 每个股票可设置不同的止损百分比
-- **持久化存储**: 止损配置自动保存，重启后仍然有效
+- **追踪止损卖出**: 股价下跌触发止损，保护已实现利润
+- **追踪止损买入**: 股价反弹触发买入，实现逢低买入策略
+- **IBKR 原生支持**: 订单直接提交到 IBKR 系统，24/7 自动监控
+- **批量下单**: 支持为账户的所有持仓或指定股票批量下单
+- **订单管理**: 查看、取消活跃订单
 
 ## 前置准备
 
@@ -26,7 +26,6 @@ IBKR Toolkit 现在支持**移动止损 (Trailing Stop Loss)** 功能，可以�
 4. 在设置中启用 API 连接:
    - 点击 "Configure" → "Settings" → "API" → "Settings"
    - 勾选 "Enable ActiveX and Socket Clients"
-   - 勾选 "Read-Only API" (如果只是查询，不自动下单)
    - 设置 "Socket port" (Paper: 4002, Live: 4001)
    - 勾选 "Allow connections from localhost only"
 
@@ -39,117 +38,46 @@ IBKR Toolkit 现在支持**移动止损 (Trailing Stop Loss)** 功能，可以�
 IBKR_GATEWAY_HOST=127.0.0.1
 IBKR_GATEWAY_PORT=4002  # Paper Trading, Live 使用 4001
 IBKR_CLIENT_ID=1
-
-# 默认止损百分比
-DEFAULT_TRAILING_STOP_PERCENT=5.0
-
-# 邮件通知配置 (可选)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your_email@gmail.com
-SMTP_PASSWORD=your_app_password
-EMAIL_FROM=your_email@gmail.com
-EMAIL_TO=recipient@example.com
-SMTP_USE_TLS=true
 ```
-
-**注意**: 如果使用 Gmail，需要生成[应用专用密码](https://support.google.com/accounts/answer/185833)。
 
 ## 使用方法
 
-### 基本命令
-
-止损功能通过 `ibkr-toolkit stop-loss` 命令使用:
+### 可用命令
 
 ```bash
-# 查看帮助
-ibkr-toolkit stop-loss --help
-
-# 检查所有持仓的止损条件
-ibkr-toolkit stop-loss check
-
-# 检查并发送邮件通知
-ibkr-toolkit stop-loss check --email
-
-# 检查并自动执行止损订单 (谨慎使用!)
-ibkr-toolkit stop-loss check --auto-execute
-
-# 为特定股票设置止损配置（仅监控，不下单）
-ibkr-toolkit stop-loss set AAPL --percent 5.0
-
-# 查看所有止损配置
-ibkr-toolkit stop-loss list
-
-# 🆕 在IB系统中为指定账户下追踪止损单
+# 为账户所有持仓下追踪止损卖出单
 ibkr-toolkit stop-loss place U12345678 --percent 5.0
 
-# 🆕 为指定账户的特定股票下追踪止损单
+# 为特定股票下追踪止损卖出单
 ibkr-toolkit stop-loss place U12345678 --percent 5.0 --symbols AAPL TSLA
 
-# 🆕 查看所有活跃订单
+# 为特定股票下追踪止损买入单（逢低买入策略）
+ibkr-toolkit stop-loss place-buy U12345678 --percent 5.0 --symbols AAPL TSLA
+
+# 查看所有活跃订单
 ibkr-toolkit stop-loss orders
 
-# 🆕 查看指定账户的活跃订单
+# 查看指定账户的活跃订单
 ibkr-toolkit stop-loss orders --account U12345678
 
-# 🆕 取消特定订单（通过订单ID）
+# 取消特定订单（通过订单ID）
 ibkr-toolkit stop-loss cancel 15 12 6
 
-# 🆕 取消指定账户的所有追踪止损单
+# 取消指定账户的所有追踪止损单
 ibkr-toolkit stop-loss cancel --account U12345678
 
-# 🆕 取消指定账户特定股票的订单
+# 取消指定账户特定股票的订单
 ibkr-toolkit stop-loss cancel --account U12345678 --symbols AAPL TSLA
-
-# 🆕🆕 为指定股票下追踪止损买入单（逢低买入策略）
-ibkr-toolkit stop-loss place-buy U12345678 --percent 5.0 --symbols AAPL TSLA
 ```
 
 ### 典型工作流程
 
-#### 1. 首次使用: 为持仓设置止损
-
-```bash
-# 启动 IB Gateway
-# ...
-
-# 为 AAPL 设置 5% 移动止损
-ibkr-toolkit stop-loss set AAPL --percent 5.0
-
-# 为 TSLA 设置 8% 移动止损 (更高风险容忍度)
-ibkr-toolkit stop-loss set TSLA --percent 8.0
-```
-
-#### 2. 定期检查止损条件
-
-```bash
-# 手动检查 (每天执行一次或多次)
-ibkr-toolkit stop-loss check --email
-```
-
-**推荐做法**: 使用 cron 定时任务每天自动检查:
-
-```bash
-# 编辑 crontab
-crontab -e
-
-# 添加定时任务: 每天 9:30 和 15:30 检查 (美股开盘和收盘前)
-30 9,15 * * 1-5 cd /path/to/ibkr-toolkit && uv run ibkr-toolkit stop-loss check --email
-```
-
-#### 3. 查看当前配置
-
-```bash
-# 查看所有股票的止损配置
-ibkr-toolkit stop-loss list
-```
-
-#### 4. 🆕 在IB系统中下追踪止损单（推荐）
+#### 1. 为持仓下追踪止损单
 
 使用 `place` 命令直接在IB系统中为指定账户下Trailing Stop订单：
 
 ```bash
-# 为 first 账户（U12345678）的所有持仓下5%追踪止损单
+# 为账户（U12345678）的所有持仓下5%追踪止损单
 ibkr-toolkit stop-loss place U12345678 --percent 5.0
 
 # 只为指定股票下单
@@ -161,10 +89,10 @@ ibkr-toolkit stop-loss orders --account U12345678
 
 **优势：**
 
-- ✅ IB系统原生支持，24小时自动监控和执行
-- ✅ 可以精确指定账户，避免误操作
-- ✅ 不需要本地程序常驻或定时任务
-- ✅ 在TWS/IB Gateway中可以查看和管理订单
+- ✅ 订单提交到IB系统，24/7自动监控
+- ✅ 不需要本地程序运行
+- ✅ 可在TWS/IB Gateway中可视化管理
+- ✅ 账户特定，支持多账户管理
 
 **注意事项：**
 
@@ -172,9 +100,7 @@ ibkr-toolkit stop-loss orders --account U12345678
 - 订单会立即提交到IB系统
 - 可以在TWS/IB Gateway中随时取消或修改订单
 
-#### 5. 🆕 取消止损订单
-
-取消不再需要的追踪止损订单：
+#### 2. 取消止损订单
 
 ```bash
 # 方式1：查看订单获取ID
@@ -182,10 +108,10 @@ ibkr-toolkit stop-loss orders --account U12345678
 
 # 输出示例：
 # 订单ID  股票    动作   数量   类型    止损%
-# 15      SNDK    SELL   4      TRAIL   5.0%
-# 12      NVDA    SELL   4      TRAIL   5.0%
+# 15      AAPL    SELL   100    TRAIL   5.0%
+# 12      TSLA    SELL   50     TRAIL   5.0%
 
-# 方式2：取消特定订单
+# 方式2：通过订单ID取消
 ibkr-toolkit stop-loss cancel 15 12
 
 # 方式3：取消账户所有追踪止损单
@@ -197,12 +123,11 @@ ibkr-toolkit stop-loss cancel --account U12345678 --symbols SNDK NVDA
 
 **使用场景：**
 
-- 错误下单后快速取消
-- 市场情况变化，需要调整策略
-- 调整止损百分比（先取消，再重新下单）
+- 股价已经上涨，想调整止损百分比
 - 决定不再使用止损保护
+- 需要重新设置止损策略
 
-#### 6. 🆕🆕 使用追踪止损买入（逢低买入策略）
+#### 3. 使用追踪止损买入（逢低买入策略）
 
 **追踪止损买入 (Trailing Stop Buy)** 是一种自动逢低买入的策略：
 
@@ -256,221 +181,185 @@ ibkr-toolkit stop-loss orders --account U12345678
 | 追踪止损卖出 | `place`     | 保护已有持仓利润 | 价格下跌超过 X% |
 | 追踪止损买入 | `place-buy` | 逢低买入新仓位   | 价格反弹超过 X% |
 
-## 两种止损方式对比
+## 追踪止损工作原理
 
-IBKR Toolkit 提供了两种止损管理方式：
+### 追踪止损卖出示例
 
-### 方式一：监控模式（set + check）
+假设你持有 AAPL 股票，设置 5% 追踪止损：
 
-**使用命令：**
+```
+初始状态:
+- 持仓成本: $100
+- 当前价格: $150
+- 止损价格: $142.5 (150 × 0.95)
 
-```bash
-ibkr-toolkit stop-loss set AAPL --percent 5.0
-ibkr-toolkit stop-loss check --email
+场景1: 股价上涨
+- 新价格: $160
+- 止损价自动上调: $152 (160 × 0.95)
+- 锁定更多利润 ✓
+
+场景2: 股价小幅回落
+- 新价格: $155
+- 止损价保持: $152 (峰值 $160 × 0.95)
+- 仍然安全 ✓
+
+场景3: 触发止损
+- 价格跌至: $151
+- 触发止损: $151 < $152
+- 自动以市价卖出 ⚠️
 ```
 
-**特点：**
+### 追踪止损买入示例
 
-- 本地监控，需要定期执行 `check` 命令
-- 支持邮件通知
-- 可以使用 `--auto-execute` 自动下单，但不建议
-- 适合多账户统一管理和监控
+假设你想买入 TSLA，设置 5% 追踪止损买入：
 
-**局限性：**
+```
+初始状态:
+- 当前价格: $200
+- 触发买入价: $210 (200 × 1.05)
 
-- ❌ 无法区分账户（按股票代码管理）
-- ❌ 需要定时任务或手动执行
-- ❌ 不是24小时监控（除非自己搭建服务）
+场景1: 股价下跌
+- 新价格: $180
+- 触发价自动下调: $189 (180 × 1.05)
+- 等待更低价格 ✓
 
-### 方式二：IB系统订单（place）🆕 推荐
+场景2: 股价持续下跌
+- 新价格: $160
+- 触发价继续下调: $168 (160 × 1.05)
+- 继续等待 ✓
 
-**使用命令：**
-
-```bash
-ibkr-toolkit stop-loss place U12345678 --percent 5.0
-ibkr-toolkit stop-loss orders --account U12345678
+场景3: 触发买入
+- 价格反弹至: $169
+- 触发买入: $169 > $168
+- 自动以市价买入 ⚠️
 ```
 
-**特点：**
+## 订单类型说明
 
-- 直接在IB系统中下Trailing Stop订单
-- IB系统24小时自动监控和执行
-- 可以精确指定账户
-- 在TWS/IB Gateway中可视化管理
+### SELL + TRAIL (追踪止损卖出)
 
-**优势：**
+- **用途**: 保护已有持仓的利润
+- **触发**: 价格从峰值下跌超过设定百分比
+- **下单数量**: 自动获取持仓数量
+- **适用**: 持有股票，想设置止损保护
 
-- ✅ 可以按账户下单，避免混淆
-- ✅ IB原生功能，更可靠
-- ✅ 24小时自动监控，无需本地程序
-- ✅ 市场开盘时订单自动激活
+### BUY + TRAIL (追踪止损买入)
 
-**推荐使用场景：**
-
-- 有多个账户需要区分管理
-- 需要24小时自动监控
-- 希望在IB系统中统一管理订单
-
-## 移动止损工作原理
-
-### 示例
-
-假设你持有 AAPL，设置 5% 移动止损:
-
-1. **初始状态**:
-   - 当前价格: $150
-   - 止损价格: $142.5 (150 × 0.95)
-
-2. **价格上涨**:
-   - 新价格: $160
-   - 止损价格自动上移: $152 (160 × 0.95)
-   - 保护了 $10 的利润
-
-3. **价格下跌**:
-   - 新价格: $155
-   - 止损价格保持: $152 (不会下移)
-   - 当价格跌破 $152 时触发止损
-
-4. **触发止损**:
-   - 价格跌至 $151
-   - 工具检测到触发条件
-   - 发送邮件通知 (如果配置了 `--email`)
-   - 自动下单 (如果使用了 `--auto-execute`)
-
-## 配置说明
-
-### 止损配置文件
-
-止损配置自动保存在 `data/cache/stop_loss_config.json`:
-
-```json
-{
-  "AAPL": {
-    "symbol": "AAPL",
-    "trailing_percent": 5.0,
-    "peak_price": 160.0,
-    "stop_price": 152.0,
-    "last_updated": "2025-01-13T10:30:00"
-  },
-  "TSLA": {
-    "symbol": "TSLA",
-    "trailing_percent": 8.0,
-    "peak_price": 250.0,
-    "stop_price": 230.0,
-    "last_updated": "2025-01-13T10:30:00"
-  }
-}
-```
-
-### 邮件通知
-
-触发止损时会收到包含以下信息的邮件:
-
-- 触发止损的持仓列表
-- 当前价格、止损价格、未实现盈亏
-- 所有持仓的概况
-- 建议操作
-
-## 安全建议
-
-### ⚠️ 重要提示
-
-1. **谨慎使用 `--auto-execute`**:
-   - 自动下单有风险，建议先使用邮件通知模式
-   - 确保在 Paper Trading 环境中充分测试
-   - 生产环境建议人工确认后再下单
-
-2. **API 权限**:
-   - 如果只是检查持仓，启用 IB Gateway 的 "Read-Only API"
-   - 自动下单前，确保 API 有交易权限
-
-3. **网络稳定性**:
-   - 确保 IB Gateway 稳定运行
-   - 网络中断可能导致检查失败
-
-4. **定时任务**:
-   - 设置合理的检查频率 (建议每天 1-2 次)
-   - 避免过于频繁的 API 调用
+- **用途**: 逢低买入新仓位
+- **触发**: 价格从低点反弹超过设定百分比
+- **下单数量**: 默认 1 股（需手动调整）
+- **适用**: 想买入股票，但等待更好价格
 
 ## 常见问题
 
-### Q: 如何修改已设置的止损百分比?
+### 1. 订单在哪里执行？
 
-A: 重新运行 `set` 命令即可覆盖:
+订单直接提交到 IBKR 系统，由 IBKR 服务器 24/7 监控和执行，不需要本地程序运行。
+
+### 2. 如何查看订单状态？
+
+可以通过以下方式查看：
+
+- 使用 `ibkr-toolkit stop-loss orders` 命令
+- 在 TWS 或 IB Gateway 中查看活跃订单
+
+### 3. 如何修改订单？
+
+- 方式1：在 TWS/IB Gateway 中直接修改
+- 方式2：取消原订单，重新下单
+
+### 4. 止损触发后会自动卖出吗？
+
+是的，订单提交到 IBKR 系统后，触发条件满足时会自动执行。
+
+### 5. 可以为多个账户下单吗？
+
+可以，每次下单时指定不同的账户ID即可。
+
+### 6. 订单有效期是多久？
+
+默认为 GTC (Good Till Cancelled)，除非手动取消否则一直有效。
+
+## 最佳实践
+
+### 1. 选择合适的止损百分比
+
+- **保守策略**: 3-5%，适合波动较小的大盘股
+- **平衡策略**: 5-8%，适合中等波动的股票
+- **激进策略**: 8-12%，适合高波动的成长股
+
+### 2. 定期检查订单
+
+建议每周检查一次活跃订单：
 
 ```bash
-ibkr-toolkit stop-loss set AAPL --percent 8.0
+ibkr-toolkit stop-loss orders --account U12345678
 ```
 
-### Q: 如何删除某个股票的止损配置?
+### 3. 根据市场调整
 
-A: 目前需要手动编辑 `data/cache/stop_loss_config.json` 文件删除对应条目，或卖出该股票后系统会自动忽略。
+- 牛市：可适当放宽止损百分比（6-8%）
+- 熊市：收紧止损百分比（3-5%）
+- 高波动期：暂停使用或放宽百分比
 
-### Q: 止损配置会过期吗?
+### 4. 避免过度交易
 
-A: 不会。配置会一直保存，直到手动删除或重新设置。
+- 不要频繁修改止损订单
+- 给市场一定的波动空间
+- 避免在短期波动中被止损出局
 
-### Q: 可以为所有持仓一次性设置止损吗?
+## 注意事项
 
-A: 目前需要逐个设置。未来版本可能会添加批量设置功能。
+⚠️ **重要提醒**:
 
-### Q: 连接 IB Gateway 失败怎么办?
+1. **Paper Trading 测试**: 建议先在模拟账户测试，熟悉后再在实盘使用
+2. **市场波动**: 高波动市场可能导致频繁触发止损
+3. **盘后交易**: 确认订单是否允许盘后交易
+4. **账户权限**: 确保账户有交易权限
+5. **网络连接**: 下单时需要 IBKR Gateway 在线
 
-A: 检查以下几点:
+## 故障排查
 
-1. IB Gateway 是否已启动并登录
-2. API 设置是否已启用
-3. 端口号是否正确 (.env 中的 `IBKR_GATEWAY_PORT`)
-4. 防火墙是否阻止了连接
-
-### Q: 邮件发送失败怎么办?
-
-A: 检查:
-
-1. SMTP 配置是否正确
-2. Gmail 用户需使用应用专用密码，不是账户密码
-3. 是否启用了 TLS (`SMTP_USE_TLS=true`)
-
-## 技术细节
-
-### 架构
+### 连接失败
 
 ```
-止损管理系统
-├── TradingClient (交易客户端)
-│   ├── 连接 IB Gateway
-│   ├── 获取持仓信息
-│   ├── 获取实时价格
-│   └── 下达止损订单
-├── StopLossManager (止损配置管理)
-│   ├── 保存/加载配置
-│   ├── 更新峰值价格
-│   └── 计算止损价格
-├── StopLossChecker (止损检查器)
-│   ├── 遍历所有持仓
-│   ├── 检查触发条件
-│   └── 执行操作
-└── EmailNotifier (邮件通知)
-    └── 发送HTML格式提醒邮件
+Error: Not connected to IBKR Gateway
 ```
 
-### 依赖
+**解决方法**:
 
-- `ib_async`: 与 IBKR API 交互
-- `smtplib`: 发送邮件通知
+1. 确认 TWS/IB Gateway 正在运行
+2. 检查端口配置 (Paper: 4002, Live: 4001)
+3. 确认 API 设置已启用
+4. 检查防火墙设置
 
-## 下一步计划
+### 下单失败
 
-未来可能添加的功能:
+```
+Error: Order rejected
+```
 
-- [ ] 批量设置止损
-- [ ] 支持不同的止损策略 (固定价格、时间止损等)
-- [ ] 可视化界面
-- [ ] 回测功能
-- [ ] 微信/钉钉通知
+**可能原因**:
 
-## 参考资料
+1. 账户没有持仓（place 命令需要有持仓）
+2. 账户权限不足
+3. 股票不支持追踪止损订单
+4. 数量超过持仓量
 
-- [IB Gateway 用户指南](https://www.interactivebrokers.com/en/trading/ibgateway-stable.php)
-- [IBKR API 文档](https://interactivebrokers.github.io/)
-- [ib_async 文档](https://github.com/ib-api-reloaded/ib_async)
+### 无法取消订单
+
+```
+Error: Order not found
+```
+
+**解决方法**:
+
+1. 使用 `orders` 命令确认订单ID
+2. 订单可能已经执行
+3. 在 TWS/IB Gateway 中手动取消
+
+## 参考资源
+
+- [IBKR API 文档](https://interactivebrokers.github.io/tws-api/)
+- [追踪止损订单说明](https://www.interactivebrokers.com/en/trading/orders/trailing-stop.php)
+- [IB Gateway 下载](https://www.interactivebrokers.com/en/trading/ibgateway-stable.php)

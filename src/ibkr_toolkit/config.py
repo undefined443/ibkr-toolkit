@@ -4,7 +4,7 @@ Configuration management for IBKR Tax Tool
 
 import os
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -110,48 +110,3 @@ class Config:
     def ibkr_client_id(self) -> int:
         """Get IBKR client ID"""
         return int(os.getenv("IBKR_CLIENT_ID", "1"))
-
-    @property
-    def default_trailing_stop_percent(self) -> float:
-        """Get default trailing stop percentage"""
-        return float(os.getenv("DEFAULT_TRAILING_STOP_PERCENT", "5.0"))
-
-    # Email Notification Configuration
-    @property
-    def smtp_host(self) -> Optional[str]:
-        """Get SMTP server host"""
-        return os.getenv("SMTP_HOST")
-
-    @property
-    def smtp_port(self) -> Optional[int]:
-        """Get SMTP server port"""
-        port = os.getenv("SMTP_PORT")
-        return int(port) if port else None
-
-    @property
-    def smtp_user(self) -> Optional[str]:
-        """Get SMTP username"""
-        return os.getenv("SMTP_USER")
-
-    @property
-    def smtp_password(self) -> Optional[str]:
-        """Get SMTP password"""
-        return os.getenv("SMTP_PASSWORD")
-
-    @property
-    def email_from(self) -> Optional[str]:
-        """Get sender email address"""
-        return os.getenv("EMAIL_FROM")
-
-    @property
-    def email_to(self) -> Optional[List[str]]:
-        """Get recipient email addresses"""
-        emails = os.getenv("EMAIL_TO")
-        if emails:
-            return [e.strip() for e in emails.split(",")]
-        return None
-
-    @property
-    def smtp_use_tls(self) -> bool:
-        """Check if SMTP should use TLS"""
-        return os.getenv("SMTP_USE_TLS", "true").lower() == "true"
