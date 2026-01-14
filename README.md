@@ -26,15 +26,29 @@
 - ✅ 支持多账户合并
 - ✅ **投资表现分析**：计算总收益率、年化收益率、最大回撤、已实现 ROI
 
-### 🆕 止损管理功能
+### 交易管理功能
 
-- ✅ **移动止损策略**：止损价随股价上涨自动上移，保护已实现利润
-- ✅ **手动触发检查**：按需检查持仓，无需常驻后台
-- ✅ **邮件通知**：触发止损时自动发送邮件提醒
-- ✅ **灵活配置**：每个股票可设置不同的止损百分比
-- ✅ **持久化存储**：止损配置自动保存，重启后仍然有效
+- ✅ **仓位查询**：实时获取账户持仓信息（股票代码、数量、市值、成本）
+- ✅ **行情查询**：获取股票实时价格
+- ✅ **订单管理**：查看所有活跃订单状态
+- ✅ **追踪止损**：下追踪止损单保护利润
+  - 支持卖单（SELL）：跟随股价上涨自动上移止损价
+  - 支持买单（BUY）：逢低买入策略
+- ✅ **批量操作**：为所有持仓批量下单或取消订单
+- ✅ **订单取消**：取消指定订单或批量取消
 
-📖 **详细使用指南**: [止损管理功能使用文档](docs/STOP_LOSS_GUIDE.md)
+**注意**：交易功能使用 IBKR Web API，需要运行 Client Portal Gateway
+
+### Web API 功能
+
+- ✅ **账户查询**：获取账户列表和详细信息
+- ✅ **持仓查询**：查看账户持仓和市值
+- ✅ **账户摘要**：查询余额、购买力、保证金等
+- ✅ **订单查询**：查看活跃订单状态
+- ✅ **合约搜索**：搜索股票合约信息
+- ✅ **行情快照**：获取实时市场数据
+
+**注意**：Web API 功能需要运行 Client Portal Gateway
 
 ## 快速开始
 
@@ -71,14 +85,28 @@ OUTPUT_DIR=./data/output
 
 配置参数说明：
 
+**税务报表功能（必填）**：
+
 - `IBKR_FLEX_TOKEN`: IBKR Flex Query Token（必填）
-- `IBKR_QUERY_ID`: IBKR Flex Query ID（必填）
+- `IBKR_QUERY_ID`: Flex Query ID（必填）
+
+**税务报表功能（可选）**：
+
 - `USD_CNY_RATE`: 固定汇率，作为 API 失败时的备用汇率（默认 7.2）
 - `USE_DYNAMIC_EXCHANGE_RATES`: 是否使用动态汇率（默认 true）
 - `OUTPUT_DIR`: 输出目录（默认 ./data/output）
 - `FIRST_TRADE_YEAR`: 首次交易年份（可选，用于 `--all` 参数）
 
+**Web API 功能（可选）**：
+
+- `IBKR_WEB_API_URL`: Client Portal Gateway URL（默认 https://localhost:5001/v1/api）
+- `IBKR_WEB_API_VERIFY_SSL`: 是否验证 SSL 证书（默认 false）
+- `IBKR_WEB_API_TIMEOUT`: 请求超时时间（默认 30 秒）
+- `IBKR_WEB_API_MAX_REQUESTS_PER_SECOND`: 速率限制（默认 50 次/秒）
+
 ### 3. 运行
+
+#### 税务报表功能
 
 ```bash
 # 使用默认日期范围（Flex Query 中配置的日期）
@@ -94,10 +122,80 @@ uv run ibkr-toolkit report --year $(date +%Y)
 uv run ibkr-toolkit report --from-year 2020
 
 # 查询从开始交易到现在的所有数据（需配置 FIRST_TRADE_YEAR）
-uv run ibkr-toolkit --all
+uv run ibkr-toolkit report --all
 
 # 查看所有可用选项
 uv run ibkr-toolkit --help
+```
+
+#### 交易管理功能
+
+**前置条件**：需要先启动 Client Portal Gateway 并登录（方法见下方 Web API 功能部分）。
+
+```bash
+# 查看所有持仓（自动显示所有账户）
+uv run ibkr-toolkit stop-loss place U12345678 --percent 5.0
+
+# 为指定账户的所有持仓下追踪止损单（5% 止损）
+uv run ibkr-toolkit stop-loss place U12345678 --percent 5.0
+
+# 为特定股票下追踪止损单
+uv run ibkr-toolkit stop-loss place U12345678 --percent 5.0 --symbols AAPL TSLA
+
+# 下追踪止损买单（逢低买入策略）
+uv run ibkr-toolkit stop-loss place-buy U12345678 --percent 5.0 --symbols AAPL TSLA
+
+# 查看所有活跃订单
+uv run ibkr-toolkit stop-loss orders
+
+# 查看指定账户的订单
+uv run ibkr-toolkit stop-loss orders --account U12345678
+
+# 取消指定订单
+uv run ibkr-toolkit stop-loss cancel 15 12
+
+# 取消账户的所有追踪止损单
+uv run ibkr-toolkit stop-loss cancel --account U12345678
+
+# 取消指定股票的订单
+uv run ibkr-toolkit stop-loss cancel --account U12345678 --symbols AAPL TSLA
+```
+
+#### Web API 功能
+
+**前置条件**：需要先启动 Client Portal Gateway 并登录。
+
+**启动 Gateway**：
+
+```bash
+cd clientportal.gw
+bin/run.sh root/conf.yaml
+# 然后在浏览器访问 https://localhost:5001 登录
+```
+
+**命令示例**：
+
+```bash
+# 查看账户信息
+uv run ibkr-toolkit web account-info
+
+# 查看账户持仓
+uv run ibkr-toolkit web positions U12345678
+
+# 查看账户摘要（余额、购买力等）
+uv run ibkr-toolkit web summary U12345678
+
+# 查看活跃订单
+uv run ibkr-toolkit web orders U12345678
+
+# 搜索股票合约
+uv run ibkr-toolkit web search AAPL
+
+# 获取市场数据快照（需要先通过 search 获取 contract ID）
+uv run ibkr-toolkit web snapshot 265598,76792991
+
+# 以 JSON 格式输出
+uv run ibkr-toolkit web positions U12345678 --format json
 ```
 
 **日期参数说明**：
@@ -545,20 +643,29 @@ CHINA_DIVIDEND_TAX_RATE = 0.20  # 20% tax rate
 
 ```
 ibkr-toolkit/
-├── src/ibkr_tax/
-│   ├── api/              # IBKR API 客户端
-│   ├── parsers/          # 数据解析器
-│   ├── services/         # 汇率服务等
-│   ├── utils/            # 工具函数
-│   ├── cli.py            # 命令行入口
-│   ├── config.py         # 配置管理
-│   └── constants.py      # 常量定义
-├── tests/                # 测试文件
+├── src/ibkr_toolkit/
+│   ├── api/
+│   │   ├── flex_query.py       # IBKR Flex Query API 客户端（税务报表）
+│   │   ├── trading_client.py   # IBKR Trading API 客户端（交易管理）
+│   │   └── web_client.py       # IBKR Web API 客户端（RESTful API）
+│   ├── parsers/
+│   │   └── data_parser.py      # 数据解析和税务计算
+│   ├── services/
+│   │   └── exchange_rate.py    # 汇率服务
+│   ├── utils/
+│   │   └── logging.py          # 日志工具
+│   ├── cli.py                  # 税务报表命令行入口
+│   ├── stop_loss_cli.py        # 交易管理命令行入口
+│   ├── web_cli.py              # Web API 命令行入口
+│   ├── main.py                 # 主入口（路由到各子命令）
+│   ├── config.py               # 配置管理
+│   ├── constants.py            # 常量定义
+│   └── exceptions.py           # 自定义异常
+├── tests/                      # 测试文件
 ├── data/
-│   ├── cache/            # 汇率缓存
-│   └── output/           # 输出文件
-├── pyproject.toml        # 项目配置
-└── README.md
+│   ├── cache/                  # 汇率缓存
+│   └── output/                 # 输出文件
+└── pyproject.toml              # 项目配置
 ```
 
 ### 运行测试
@@ -727,13 +834,102 @@ uv run ibkr-toolkit --all
 - 显示实时进度，可以看到当前查询状态
 - 示例：查询 5 年数据大约需要 1-2 分钟
 
-### Q13: 多年数据的汇率如何计算？
+### Q14: 如何启用交易管理功能？
 
-**A**: 与单年查询完全相同：
+**A**: 需要完成以下步骤：
 
-- 动态汇率模式：每笔交易使用其交易日的实际汇率
-- 固定汇率模式：所有交易使用配置的固定汇率
-- 汇率缓存跨年共享，减少 API 调用
+1. **下载并安装 Client Portal Gateway**
+   - [下载页面](https://www.interactivebrokers.com/en/trading/ibgateway-stable.php)
+   - 选择 Client Portal Gateway 版本
+
+2. **启动 Client Portal Gateway 并登录**
+
+   ```bash
+   cd clientportal.gw
+   bin/run.sh root/conf.yaml
+   ```
+
+   - 然后在浏览器访问 https://localhost:5001 登录
+
+3. **配置环境变量**（可选，使用默认值）
+
+   ```bash
+   IBKR_WEB_API_URL=https://localhost:5001/v1/api
+   IBKR_WEB_API_VERIFY_SSL=false
+   IBKR_WEB_API_TIMEOUT=30
+   ```
+
+4. **运行交易命令**
+   ```bash
+   uv run ibkr-toolkit stop-loss orders
+   ```
+
+### Q15: 追踪止损单如何工作？
+
+**A**: 追踪止损单（Trailing Stop Order）是一种动态止损策略：
+
+**卖单（SELL）示例**：
+
+- 当前股价：$100
+- 设置 5% 追踪止损
+- 初始止损价：$95
+- 股价涨到 $110 → 止损价自动上移到 $104.50
+- 股价涨到 $120 → 止损价自动上移到 $114
+- 股价跌到 $114 → 触发止损卖出
+
+**买单（BUY）示例**（逢低买入）：
+
+- 当前股价：$100
+- 设置 5% 追踪止损买单
+- 股价跌到 $95 → 不触发
+- 股价继续跌到 $90 → 不触发
+- 股价反弹到 $94.50（从最低点上涨 5%）→ 触发买入
+
+**优势**：
+
+- 订单提交到 IBKR 系统，24/7 自动监控
+- 不需要本地程序一直运行
+- 保护利润的同时允许股价继续上涨
+
+### Q16: 延迟行情是否影响交易？
+
+**A**: 不影响。延迟行情（15-20 分钟延迟）仅用于显示价格信息，实际订单执行使用的是实时价格。追踪止损单提交后，IBKR 系统会使用实时价格监控和执行。
+
+### Q17: 如何查看我的持仓？
+
+**A**: 使用 `stop-loss place` 命令时，工具会自动显示持仓信息：
+
+```bash
+# 会先显示账户的所有持仓，然后下单
+uv run ibkr-toolkit stop-loss place U12345678 --percent 5.0
+```
+
+输出示例：
+
+```
+Account: U12345678
+---------------------------------------------
+AAPL  : 100 shares @ $150.50, Value: $15,050
+TSLA  : 50 shares @ $200.00, Value: $10,000
+```
+
+### Q18: 可以同时管理多个账户吗？
+
+**A**: 可以。每次命令指定一个账户 ID：
+
+```bash
+# 账户 1
+uv run ibkr-toolkit stop-loss place U12345678 --percent 5.0
+
+# 账户 2
+uv run ibkr-toolkit stop-loss place U98765432 --percent 3.0
+```
+
+查看所有账户的订单：
+
+```bash
+uv run ibkr-toolkit stop-loss orders
+```
 
 ## 中国税务申报参考
 

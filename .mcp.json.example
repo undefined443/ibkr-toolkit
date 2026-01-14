@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "mcp-aktools": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "mcp-aktools"
+      ],
+      "env": {}
+    },
+    "alpha-vantage": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "av-mcp",
+        "YOUR_ALPHA_VANTAGE_API_KEY"
+      ],
+      "env": {}
+    }
+  }
+}

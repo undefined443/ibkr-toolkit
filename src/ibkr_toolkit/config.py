@@ -110,3 +110,24 @@ class Config:
     def ibkr_client_id(self) -> int:
         """Get IBKR client ID"""
         return int(os.getenv("IBKR_CLIENT_ID", "1"))
+
+    # Web API Configuration
+    @property
+    def web_api_url(self) -> str:
+        """Get Client Portal Gateway base URL"""
+        return os.getenv("IBKR_WEB_API_URL", "https://localhost:5001/v1/api")
+
+    @property
+    def web_api_verify_ssl(self) -> bool:
+        """Check if SSL verification should be enabled for Web API"""
+        return os.getenv("IBKR_WEB_API_VERIFY_SSL", "false").lower() == "true"
+
+    @property
+    def web_api_timeout(self) -> int:
+        """Get Web API request timeout in seconds"""
+        return int(os.getenv("IBKR_WEB_API_TIMEOUT", "30"))
+
+    @property
+    def web_api_max_requests_per_second(self) -> int:
+        """Get Web API rate limit (requests per second)"""
+        return int(os.getenv("IBKR_WEB_API_MAX_REQUESTS_PER_SECOND", "50"))

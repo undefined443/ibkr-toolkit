@@ -1,448 +1,256 @@
 """
-IBKR Trading API Client
+IBKR Trading Client using Web API
 
-This module provides a client for interacting with Interactive Brokers
-using the ib_async library for trading operations like getting positions
-and placing stop-loss orders.
+This module provides a client for interacting with IBKR's Web API for trading operations.
+Replaces the previous ib_async implementation.
 """
 
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
-from ib_async import IB, PortfolioItem, Stock
-
-from ..exceptions import APIError
 from ..utils.logging import setup_logger
+from .web_client import WebAPIClient, WebAPIError
 
-logger = setup_logger(__name__)
+logger = setup_logger("ibkr_toolkit.trading_client", level="INFO", console=True)
 
 
 class TradingClient:
-    """Client for IBKR Trading API operations"""
+    """
+    Trading client using IBKR Web API
 
-    def __init__(self, host: str = "127.0.0.1", port: int = 7497, client_id: int = 1):
+    Provides functionality for:
+    - Position management
+    - Market data queries
+    - Order placement and management
+    - Account queries
+    """
+
+    def __init__(
+        self,
+        base_url: str = "https://localhost:5001/v1/api",
+        verify_ssl: bool = False,
+        timeout: int = 30,
+    ):
         """
-        Initialize Trading API client
+        Initialize trading client
 
         Args:
-            host: TWS/IB Gateway host address
-            port: TWS/IB Gateway port (7497 for TWS paper, 7496 for TWS live,
-                  4002 for IB Gateway paper, 4001 for IB Gateway live)
-            client_id: Client ID for connection (must be unique)
+            base_url: IBKR Web API base URL
+            verify_ssl: Whether to verify SSL certificates
+            timeout: Request timeout in seconds
         """
-        self.host = host
-        self.port = port
-        self.client_id = client_id
-        self.ib = IB()
+        self.client = WebAPIClient(base_url=base_url, verify_ssl=verify_ssl, timeout=timeout)
         self._connected = False
+        logger.info("Trading client initialized")
 
-    def connect(self) -> None:
+    def connect(self) -> bool:
         """
-        Connect to TWS or IB Gateway
-
-        Raises:
-            APIError: If connection fails
-        """
-        try:
-            logger.info(f"Connecting to IBKR Gateway {self.host}:{self.port}...")
-            self.ib.connect(self.host, self.port, clientId=self.client_id)
-            self._connected = True
-
-            # Request delayed market data (free, 15-20 min delay)
-            # This avoids "Error 10089: Requested market data requires additional subscription"
-            self.ib.reqMarketDataType(3)  # 1=Live, 2=Frozen, 3=Delayed, 4=Delayed-Frozen
-
-            logger.info("Connected successfully (using delayed market data)")
-        except Exception as e:
-            raise APIError(f"Connection failed: {e}")
-
-    def disconnect(self) -> None:
-        """Disconnect from TWS or IB Gateway"""
-        if self._connected:
-            self.ib.disconnect()
-            self._connected = False
-            logger.info("Disconnected")
-
-    def is_connected(self) -> bool:
-        """Check if currently connected"""
-        return self._connected and self.ib.isConnected()
-
-    def get_positions(self) -> List[PortfolioItem]:
-        """
-        Get current portfolio positions
+        Check connection to IBKR Web API
 
         Returns:
-            List of PortfolioItem objects containing position information
+            True if connected and authenticated
 
         Raises:
-            APIError: If not connected or request fails
+            WebAPIError: If connection fails
         """
-        if not self.is_connected():
-            raise APIError("未连接到 IBKR Gateway")
-
         try:
-            # Use reqPositions() instead of portfolio() for better compatibility
-            positions = self.ib.reqPositions()
-            # Wait for data to arrive
-            self.ib.sleep(2)
+            auth_status = self.client.get_auth_status()
+            self._connected = auth_status.get("authenticated", False)
 
-            # Convert Position objects to PortfolioItem format for compatibility
-            portfolio_items = []
+            if self._connected:
+                logger.info("Connected to IBKR Web API")
+            else:
+                logger.error("Not authenticated with IBKR Web API")
+
+            return self._connected
+
+        except WebAPIError as e:
+            logger.error(f"Failed to connect: {e}")
+            raise
+
+    def disconnect(self):
+        """
+        Disconnect from IBKR Web API
+
+        Note: Web API doesn't require explicit disconnect
+        """
+        self._connected = False
+        logger.info("Disconnected from IBKR Web API")
+
+    def is_connected(self) -> bool:
+        """
+        Check if connected
+
+        Returns:
+            True if connected
+        """
+        return self._connected
+
+    def get_positions(self, account: str) -> List[Dict[str, Any]]:
+        """
+        Get account positions
+
+        Args:
+            account: Account ID
+
+        Returns:
+            List of position dictionaries with keys:
+            - symbol: Stock symbol
+            - position: Number of shares
+            - avgCost: Average cost per share
+            - mktPrice: Current market price
+            - mktValue: Market value
+            - unrealizedPnl: Unrealized P&L
+            - conid: Contract ID
+
+        Raises:
+            WebAPIError: If request fails
+        """
+        try:
+            positions = self.client.get_positions(account)
+
+            # Format positions to match expected interface
+            formatted_positions = []
             for pos in positions:
-                # Get market data for each position
-                contract = pos.contract
-                self.ib.qualifyContracts(contract)
-
-                # Request market data
-                ticker = self.ib.reqMktData(contract, "", False, False)
-                self.ib.sleep(1)
-
-                # Get market price
-                market_price = ticker.marketPrice()
-                if market_price != market_price:  # Check for NaN
-                    market_price = ticker.last if ticker.last == ticker.last else ticker.close
-
-                # Cancel market data
-                self.ib.cancelMktData(contract)
-
-                # Create PortfolioItem-like object
-                from ib_async import PortfolioItem
-
-                item = PortfolioItem(
-                    contract=contract,
-                    position=pos.position,
-                    marketPrice=market_price if market_price == market_price else 0.0,
-                    marketValue=pos.position
-                    * (market_price if market_price == market_price else 0.0),
-                    averageCost=pos.avgCost,
-                    unrealizedPNL=0.0,  # Will be calculated if needed
-                    realizedPNL=0.0,
-                    account=pos.account,
+                formatted_positions.append(
+                    {
+                        "symbol": pos.get("contractDesc", ""),
+                        "position": pos.get("position", 0),
+                        "avgCost": pos.get("avgCost", 0),
+                        "mktPrice": pos.get("mktPrice", 0),
+                        "mktValue": pos.get("mktValue", 0),
+                        "unrealizedPnl": pos.get("unrealizedPnl", 0),
+                        "conid": pos.get("conid", 0),
+                    }
                 )
-                portfolio_items.append(item)
 
-            logger.info(f"Retrieved {len(portfolio_items)} positions")
-            return portfolio_items
-        except Exception as e:
-            raise APIError(f"Failed to retrieve positions: {e}")
+            logger.info(f"Retrieved {len(formatted_positions)} positions for account {account}")
+            return formatted_positions
 
-    def get_market_price(self, symbol: str, exchange: str = "SMART") -> Optional[float]:
+        except WebAPIError as e:
+            logger.error(f"Failed to get positions: {e}")
+            raise
+
+    def get_market_price(self, symbol: str) -> Optional[float]:
         """
         Get current market price for a symbol
 
         Args:
-            symbol: Stock symbol (e.g., 'AAPL')
-            exchange: Exchange code (default: 'SMART' for best execution)
+            symbol: Stock symbol
 
         Returns:
-            Current market price or None if unavailable
+            Current market price, or None if not available
 
         Raises:
-            APIError: If not connected or request fails
+            WebAPIError: If request fails
         """
-        if not self.is_connected():
-            raise APIError("Not connected to IBKR Gateway")
-
         try:
-            contract = Stock(symbol, exchange, "USD")
-            self.ib.qualifyContracts(contract)
-
-            # Request market data
-            ticker = self.ib.reqMktData(contract, "", False, False)
-            self.ib.sleep(2)  # Wait for data to arrive
-
-            # Get last price or close price
-            price = ticker.last if ticker.last == ticker.last else ticker.close
-
-            # Cancel market data subscription
-            self.ib.cancelMktData(contract)
-
-            if price and price == price:  # Check for NaN
-                logger.info(f"{symbol} current price: ${price:.2f}")
-                return float(price)
-            else:
-                logger.warning(f"Unable to get price for {symbol}")
+            # First search for the contract
+            results = self.client.search_contract(symbol)
+            if not results:
+                logger.warning(f"No contract found for symbol {symbol}")
                 return None
 
-        except Exception as e:
-            raise APIError(f"Failed to get price: {e}")
+            # Use the first result (usually the primary exchange)
+            conid = results[0].get("conid")
 
-    def place_stop_loss_order(
-        self, symbol: str, quantity: int, stop_price: float, exchange: str = "SMART"
-    ) -> str:
-        """
-        Place a stop-loss order
+            # Get market snapshot
+            snapshot = self.client.get_market_snapshot([conid])
+            if not snapshot:
+                logger.warning(f"No market data available for {symbol}")
+                return None
 
-        Args:
-            symbol: Stock symbol
-            quantity: Number of shares to sell (positive number)
-            stop_price: Stop price trigger
-            exchange: Exchange code
+            # Extract last price (field 31)
+            price = snapshot[0].get("31")
+            if price:
+                logger.info(f"Market price for {symbol}: ${price:.2f}")
+                return float(price)
 
-        Returns:
-            Order ID
+            return None
 
-        Raises:
-            APIError: If order placement fails
-        """
-        if not self.is_connected():
-            raise APIError("Not connected to IBKR Gateway")
-
-        try:
-            from ib_async import Order
-
-            contract = Stock(symbol, exchange, "USD")
-            self.ib.qualifyContracts(contract)
-
-            # Create stop-loss order
-            order = Order()
-            order.action = "SELL"
-            order.orderType = "STP"
-            order.totalQuantity = quantity
-            order.auxPrice = stop_price  # Stop price
-            order.tif = "GTC"  # Good Till Cancelled
-
-            # Place order
-            trade = self.ib.placeOrder(contract, order)
-            order_id = str(trade.order.orderId)
-
-            logger.info(
-                f"Stop-loss order placed: {symbol} {quantity} shares @ "
-                f"${stop_price:.2f} (Order ID: {order_id})"
-            )
-            return order_id
-
-        except Exception as e:
-            raise APIError(f"Failed to place stop-loss order: {e}")
-
-    def cancel_order(self, order_id: int) -> None:
-        """
-        Cancel an order
-
-        Args:
-            order_id: Order ID to cancel
-
-        Raises:
-            APIError: If cancellation fails
-        """
-        if not self.is_connected():
-            raise APIError("Not connected to IBKR Gateway")
-
-        try:
-            # Find the order
-            trades = self.ib.trades()
-            for trade in trades:
-                if trade.order.orderId == order_id:
-                    self.ib.cancelOrder(trade.order)
-                    logger.info(f"Order {order_id} cancelled")
-                    return
-
-            logger.warning(f"Order {order_id} not found")
-
-        except Exception as e:
-            raise APIError(f"Failed to cancel order: {e}")
-
-    def cancel_orders_by_account(
-        self, account: str, symbols: Optional[List[str]] = None, order_type: str = "TRAIL"
-    ) -> List[dict]:
-        """
-        Cancel all orders for a specific account
-
-        Args:
-            account: Account ID to cancel orders for
-            symbols: Optional list of symbols to filter
-            order_type: Order type to cancel (default: TRAIL for trailing stop)
-
-        Returns:
-            List of cancelled order info dictionaries
-
-        Raises:
-            APIError: If request fails
-        """
-        if not self.is_connected():
-            raise APIError("Not connected to IBKR Gateway")
-
-        try:
-            # Get all open orders for the account
-            orders = self.get_open_orders(account=account)
-
-            # Filter by order type and symbols
-            to_cancel = []
-            for order in orders:
-                if order.get("orderType") != order_type:
-                    continue
-                if symbols and order.get("symbol") not in symbols:
-                    continue
-                to_cancel.append(order)
-
-            if not to_cancel:
-                logger.info(f"No orders to cancel for account {account}")
-                return []
-
-            # Cancel each order
-            results = []
-            for order in to_cancel:
-                order_id = order.get("orderId")
-                symbol = order.get("symbol")
-                try:
-                    self.cancel_order(order_id)
-                    results.append(
-                        {
-                            "orderId": order_id,
-                            "symbol": symbol,
-                            "status": "cancelled",
-                        }
-                    )
-                except Exception as e:
-                    logger.error(f"Failed to cancel order {order_id} ({symbol}): {e}")
-                    results.append(
-                        {
-                            "orderId": order_id,
-                            "symbol": symbol,
-                            "status": "failed",
-                            "error": str(e),
-                        }
-                    )
-
-            cancelled_count = len([r for r in results if r["status"] == "cancelled"])
-            logger.info(f"Successfully cancelled {cancelled_count} orders")
-            return results
-
-        except Exception as e:
-            raise APIError(f"Failed to cancel orders in batch: {e}")
+        except WebAPIError as e:
+            logger.error(f"Failed to get market price for {symbol}: {e}")
+            raise
 
     def place_trailing_stop_order(
         self,
         symbol: str,
-        quantity: int,
+        quantity: float,
         trailing_percent: float,
         action: str = "SELL",
         account: Optional[str] = None,
-        exchange: str = "SMART",
     ) -> dict:
         """
         Place a trailing stop order
 
         Args:
             symbol: Stock symbol
-            quantity: Number of shares (positive number)
+            quantity: Number of shares
             trailing_percent: Trailing stop percentage (e.g., 5.0 for 5%)
-            action: Order action - "SELL" for trailing stop loss, "BUY" for trailing stop buy
-            account: Account to place order for (optional)
-            exchange: Exchange code (default: SMART)
+            action: Order action (SELL or BUY)
+            account: Account ID (required)
 
         Returns:
             Dictionary with order information:
             {
                 'orderId': int,
                 'symbol': str,
-                'quantity': int,
+                'quantity': float,
                 'trailing_percent': float,
                 'action': str,
                 'status': str
             }
 
         Raises:
-            APIError: If order placement fails
+            WebAPIError: If order placement fails
         """
-        if not self.is_connected():
-            raise APIError("Not connected to IBKR Gateway")
-
-        # Validate action
-        if action not in ("SELL", "BUY"):
-            raise APIError(f"Invalid action: {action}. Must be 'SELL' or 'BUY'")
+        if not account:
+            raise WebAPIError("Account ID is required for placing orders")
 
         try:
-            from ib_async import Order
+            # Search for contract
+            results = self.client.search_contract(symbol)
+            if not results:
+                logger.error(f"No contract found for symbol {symbol}")
+                return {"symbol": symbol, "error": "Contract not found", "status": "failed"}
 
-            contract = Stock(symbol, exchange, "USD")
-            self.ib.qualifyContracts(contract)
+            conid = results[0].get("conid")
 
-            # Create trailing stop order
-            order = Order()
-            order.action = action
-            order.orderType = "TRAIL"
-            order.totalQuantity = quantity
-            order.trailingPercent = trailing_percent
-            order.tif = "GTC"  # Good Till Cancelled
-            order.outsideRth = True  # Allow execution outside regular trading hours
-
-            if account:
-                order.account = account
-
-            # Place order
-            trade = self.ib.placeOrder(contract, order)
-            self.ib.sleep(1)  # Wait for order to be submitted
-
-            order_id = trade.order.orderId
-            status = trade.orderStatus.status
-
-            logger.info(
-                f"Trailing stop {action} order placed: {symbol} {quantity} shares @ "
-                f"{trailing_percent}% (Order ID: {order_id}, Status: {status})"
-            )
-
-            return {
-                "orderId": order_id,
-                "symbol": symbol,
-                "quantity": quantity,
-                "trailing_percent": trailing_percent,
-                "action": action,
-                "status": status,
+            # Create order payload
+            order_payload = {
+                "conid": conid,
+                "orderType": "TRAIL",
+                "side": action,
+                "quantity": abs(quantity),
+                "tif": "GTC",  # Good till cancelled
+                "outsideRTH": True,  # Allow outside regular trading hours
+                "auxPrice": trailing_percent,  # Trailing amount (percentage)
             }
 
-        except Exception as e:
-            raise APIError(f"Failed to place trailing stop order: {e}")
+            # Place order
+            response = self.client.place_order(account, [order_payload])
 
-    def get_open_orders(self, account: Optional[str] = None) -> List[dict]:
-        """
-        Get all open orders
-
-        Args:
-            account: Filter by account (optional)
-
-        Returns:
-            List of order dictionaries with keys:
-            - orderId, symbol, quantity, orderType, status, etc.
-
-        Raises:
-            APIError: If request fails
-        """
-        if not self.is_connected():
-            raise APIError("Not connected to IBKR Gateway")
-
-        try:
-            trades = self.ib.openTrades()
-            self.ib.sleep(1)
-
-            orders = []
-            for trade in trades:
-                # Filter by account if specified
-                if account and trade.order.account != account:
-                    continue
-
-                order_info = {
-                    "orderId": trade.order.orderId,
-                    "symbol": trade.contract.symbol,
-                    "action": trade.order.action,
-                    "quantity": trade.order.totalQuantity,
-                    "orderType": trade.order.orderType,
-                    "status": trade.orderStatus.status,
-                    "account": trade.order.account,
+            # Handle response
+            if isinstance(response, list) and len(response) > 0:
+                order_id = response[0].get("order_id")
+                logger.info(
+                    f"Placed {action} trailing stop order for {quantity} {symbol} "
+                    f"with {trailing_percent}% trail, Order ID: {order_id}"
+                )
+                return {
+                    "orderId": order_id,
+                    "symbol": symbol,
+                    "quantity": quantity,
+                    "trailing_percent": trailing_percent,
+                    "action": action,
+                    "status": "Submitted",
                 }
 
-                # Add type-specific fields
-                if trade.order.orderType == "TRAIL":
-                    order_info["trailing_percent"] = trade.order.trailingPercent
-                elif trade.order.orderType == "STP":
-                    order_info["stop_price"] = trade.order.auxPrice
+            logger.error(f"Failed to place order: {response}")
+            return {"symbol": symbol, "error": str(response), "status": "failed"}
 
-                orders.append(order_info)
-
-            logger.info(f"Found {len(orders)} active orders")
-            return orders
-
-        except Exception as e:
-            raise APIError(f"Failed to get orders: {e}")
+        except WebAPIError as e:
+            logger.error(f"Failed to place trailing stop order: {e}")
+            return {"symbol": symbol, "error": str(e), "status": "failed"}
 
     def place_trailing_stop_for_positions(
         self,
@@ -452,64 +260,181 @@ class TradingClient:
         action: str = "SELL",
     ) -> List[dict]:
         """
-        Place trailing stop orders for all positions in an account
+        Place trailing stop orders for all positions in account
 
         Args:
-            account: Account ID to place orders for
+            account: Account ID
             trailing_percent: Trailing stop percentage
             symbols: Optional list of symbols to filter (if None, all positions)
-            action: Order action - "SELL" for trailing stop loss, "BUY" for trailing stop buy
+            action: Order action (SELL or BUY)
 
         Returns:
             List of order result dictionaries
 
         Raises:
-            APIError: If request fails
+            WebAPIError: If request fails
         """
-        if not self.is_connected():
-            raise APIError("Not connected to IBKR Gateway")
+        results = []
 
         try:
-            # Get positions for the account
-            all_positions = self.get_positions()
-            account_positions = [p for p in all_positions if p.account == account]
+            positions = self.get_positions(account)
 
-            # Filter by symbols if specified
-            if symbols:
-                account_positions = [p for p in account_positions if p.contract.symbol in symbols]
+            for pos in positions:
+                symbol = pos["symbol"]
+                quantity = pos["position"]
 
-            if not account_positions:
-                logger.warning(f"No positions found for account {account}")
-                return []
-
-            results = []
-            for pos in account_positions:
-                symbol = pos.contract.symbol
-                quantity = int(abs(pos.position))  # Use absolute value
-
-                if quantity <= 0:
-                    logger.warning(f"Skipping {symbol}: quantity is {quantity}")
+                # Skip if quantity is 0
+                if quantity == 0:
                     continue
 
-                try:
-                    result = self.place_trailing_stop_order(
-                        symbol=symbol,
-                        quantity=quantity,
-                        trailing_percent=trailing_percent,
-                        action=action,
-                        account=account,
-                    )
-                    results.append(result)
-                except Exception as e:
-                    logger.error(f"Failed to place order for {symbol}: {e}")
-                    results.append({"symbol": symbol, "error": str(e), "status": "failed"})
+                # Skip if symbols filter is provided and symbol not in list
+                if symbols and symbol not in symbols:
+                    continue
 
-            success_count = len([r for r in results if "orderId" in r])
-            logger.info(f"Successfully placed orders for {success_count} positions")
+                # Place trailing stop order
+                result = self.place_trailing_stop_order(
+                    symbol=symbol,
+                    quantity=quantity,
+                    trailing_percent=trailing_percent,
+                    action=action,
+                    account=account,
+                )
+
+                results.append(result)
+
+            logger.info(f"Placed {len(results)} trailing stop orders")
             return results
 
-        except Exception as e:
-            raise APIError(f"Failed to place orders in batch: {e}")
+        except WebAPIError as e:
+            logger.error(f"Failed to place trailing stop orders: {e}")
+            raise
+
+    def get_open_orders(self, account: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Get open orders
+
+        Args:
+            account: Optional account ID filter
+
+        Returns:
+            List of order dictionaries
+
+        Raises:
+            WebAPIError: If request fails
+        """
+        try:
+            if account:
+                orders = self.client.get_live_orders(account)
+            else:
+                # Get all accounts and their orders
+                accounts = self.client.get_accounts()
+                orders = []
+                for acc in accounts:
+                    acc_id = acc.get("id") or acc.get("accountId")
+                    acc_orders = self.client.get_live_orders(acc_id)
+                    orders.extend(acc_orders)
+
+            # Handle different response formats
+            if isinstance(orders, dict):
+                order_list = orders.get("orders", [])
+            elif isinstance(orders, list):
+                order_list = orders
+            else:
+                order_list = []
+
+            logger.info(f"Retrieved {len(order_list)} open orders")
+            return order_list
+
+        except WebAPIError as e:
+            logger.error(f"Failed to get open orders: {e}")
+            raise
+
+    def cancel_order(self, account: str, order_id: int) -> bool:
+        """
+        Cancel an order
+
+        Args:
+            account: Account ID
+            order_id: Order ID to cancel
+
+        Returns:
+            True if successful
+
+        Raises:
+            WebAPIError: If cancellation fails
+        """
+        try:
+            self.client.cancel_order(account, order_id)
+            logger.info(f"Cancelled order {order_id}")
+            return True
+
+        except WebAPIError as e:
+            logger.error(f"Failed to cancel order {order_id}: {e}")
+            raise
+
+    def cancel_orders_by_account(
+        self,
+        account: str,
+        symbols: Optional[List[str]] = None,
+        order_type: Optional[str] = None,
+    ) -> List[dict]:
+        """
+        Cancel all orders for an account
+
+        Args:
+            account: Account ID
+            symbols: Optional list of symbols to filter
+            order_type: Optional order type filter (e.g., "TRAIL")
+
+        Returns:
+            List of cancelled order info dictionaries
+
+        Raises:
+            WebAPIError: If request fails
+        """
+        results = []
+
+        try:
+            orders = self.get_open_orders(account)
+
+            for order in orders:
+                # Check if order matches filters
+                if symbols and order.get("ticker") not in symbols:
+                    continue
+
+                if order_type and order.get("orderType") != order_type:
+                    continue
+
+                # Cancel the order
+                order_id = order.get("orderId")
+                symbol = order.get("ticker", "N/A")
+                if order_id:
+                    try:
+                        self.cancel_order(account, order_id)
+                        results.append(
+                            {
+                                "orderId": order_id,
+                                "symbol": symbol,
+                                "status": "cancelled",
+                            }
+                        )
+                    except WebAPIError as e:
+                        results.append(
+                            {
+                                "orderId": order_id,
+                                "symbol": symbol,
+                                "status": "failed",
+                                "error": str(e),
+                            }
+                        )
+
+            cancelled_count = len([r for r in results if r["status"] == "cancelled"])
+            logger.info(f"Cancelled {cancelled_count} orders for account {account}")
+            return results
+
+        except WebAPIError as e:
+            logger.error(f"Failed to cancel orders: {e}")
+            raise
 
     def __enter__(self):
         """Context manager entry"""

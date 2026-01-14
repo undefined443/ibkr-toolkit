@@ -125,6 +125,63 @@ def create_parser() -> argparse.ArgumentParser:
         help="Only cancel orders for these symbols (requires --account)",
     )
 
+    # Web API subcommand
+    web_parser = subparsers.add_parser(
+        "web",
+        help="Query account data using IBKR Web API",
+        description="Query account data using IBKR Web API (RESTful API)",
+    )
+    web_subparsers = web_parser.add_subparsers(
+        title="web commands",
+        description="Available Web API commands",
+        dest="web_command",
+        required=True,
+        help="Web API command to execute",
+    )
+
+    # Account info command
+    account_info_parser = web_subparsers.add_parser(
+        "account-info", help="Display account information"
+    )
+    account_info_parser.add_argument(
+        "--format", choices=["table", "json"], default="table", help="Output format"
+    )
+
+    # Positions command
+    web_positions_parser = web_subparsers.add_parser("positions", help="Display account positions")
+    web_positions_parser.add_argument("account_id", help="Account ID")
+    web_positions_parser.add_argument(
+        "--format", choices=["table", "json"], default="table", help="Output format"
+    )
+
+    # Summary command
+    web_summary_parser = web_subparsers.add_parser("summary", help="Display account summary")
+    web_summary_parser.add_argument("account_id", help="Account ID")
+    web_summary_parser.add_argument(
+        "--format", choices=["table", "json"], default="table", help="Output format"
+    )
+
+    # Orders command
+    web_orders_parser = web_subparsers.add_parser("orders", help="Display live orders")
+    web_orders_parser.add_argument("account_id", help="Account ID")
+    web_orders_parser.add_argument(
+        "--format", choices=["table", "json"], default="table", help="Output format"
+    )
+
+    # Search command
+    web_search_parser = web_subparsers.add_parser("search", help="Search for contracts")
+    web_search_parser.add_argument("symbol", help="Symbol to search")
+    web_search_parser.add_argument(
+        "--format", choices=["table", "json"], default="table", help="Output format"
+    )
+
+    # Snapshot command
+    web_snapshot_parser = web_subparsers.add_parser("snapshot", help="Get market data snapshot")
+    web_snapshot_parser.add_argument("conids", help="Comma-separated list of contract IDs")
+    web_snapshot_parser.add_argument(
+        "--format", choices=["table", "json"], default="table", help="Output format"
+    )
+
     return parser
 
 
@@ -172,6 +229,36 @@ def main() -> None:
                 sys.argv.extend(["--symbols"] + args.symbols)
 
         stop_loss_main()
+
+    elif args.command == "web":
+        from ibkr_toolkit.config import Config
+        from ibkr_toolkit.web_cli import (
+            account_info_command,
+            orders_command,
+            positions_command,
+            search_command,
+            snapshot_command,
+            summary_command,
+        )
+
+        config = Config()
+
+        try:
+            if args.web_command == "account-info":
+                sys.exit(account_info_command(config, args.format))
+            elif args.web_command == "positions":
+                sys.exit(positions_command(config, args.account_id, args.format))
+            elif args.web_command == "summary":
+                sys.exit(summary_command(config, args.account_id, args.format))
+            elif args.web_command == "orders":
+                sys.exit(orders_command(config, args.account_id, args.format))
+            elif args.web_command == "search":
+                sys.exit(search_command(config, args.symbol, args.format))
+            elif args.web_command == "snapshot":
+                sys.exit(snapshot_command(config, args.conids, args.format))
+        except KeyboardInterrupt:
+            print("\nOperation cancelled by user")
+            sys.exit(130)
 
 
 if __name__ == "__main__":

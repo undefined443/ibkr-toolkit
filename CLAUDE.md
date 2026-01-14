@@ -4,7 +4,10 @@
 
 ## 项目概述
 
-IBKR Toolkit 是一个用于从 Interactive Brokers 获取交易数据并生成中国税务申报报表的 Python 工具。
+IBKR Toolkit 是一个综合性的 Interactive Brokers 工具集，提供两大核心功能：
+
+1. **税务报表功能**：从 IBKR 获取交易数据并生成中国税务申报报表
+2. **交易管理功能**：通过 IBKR Web API (Client Portal Gateway) 实时管理交易订单和持仓
 
 ## 技术栈
 
@@ -68,16 +71,20 @@ def fetch_data(self, from_date: str = None, to_date: str = None) -> Union[Dict[s
 
 ```
 ibkr-toolkit/
-├── src/ibkr_tax/
+├── src/ibkr_toolkit/
 │   ├── api/
-│   │   └── flex_query.py       # IBKR Flex Query API 客户端
+│   │   ├── flex_query.py       # IBKR Flex Query API 客户端（税务报表）
+│   │   ├── trading_client.py   # IBKR Web API 客户端（交易管理）
+│   │   └── web_client.py       # IBKR Web API 底层客户端
 │   ├── parsers/
 │   │   └── data_parser.py      # 数据解析和税务计算
 │   ├── services/
 │   │   └── exchange_rate.py    # 汇率服务
 │   ├── utils/
 │   │   └── logging.py          # 日志工具
-│   ├── cli.py                  # 命令行入口
+│   ├── cli.py                  # 税务报表命令行入口
+│   ├── stop_loss_cli.py        # 交易管理命令行入口
+│   ├── main.py                 # 主入口（路由到各子命令）
 │   ├── config.py               # 配置管理
 │   ├── constants.py            # 常量定义
 │   └── exceptions.py           # 自定义异常
@@ -131,9 +138,9 @@ ibkr-toolkit/
 
 **注意**：使用的是**当日汇率**，不是月平均汇率。
 
-### 4. 命令行接口 (`cli.py`)
+### 4. 命令行接口 (`cli.py` 和 `stop_loss_cli.py`)
 
-提供用户交互界面：
+**税务报表接口 (`cli.py`)**：
 
 - 支持 `--year` / `-y` 参数指定单个税务年度
 - 支持 `--from-year` 参数指定起始年份（多年查询）
@@ -141,6 +148,20 @@ ibkr-toolkit/
 - 自动分年查询并合并多年数据
 - 自动处理单账户和多账户数据
 - 生成 Excel、JSON 格式的输出文件
+
+**交易管理接口 (`stop_loss_cli.py`)**：
+
+- `place` 命令：为账户持仓下追踪止损卖单
+- `place-buy` 命令：下追踪止损买单（逢低买入）
+- `orders` 命令：查看所有活跃订单
+- `cancel` 命令：取消订单
+- 支持按账户、按股票过滤
+- 使用 IBKR Web API (Client Portal Gateway)
+
+**主入口 (`main.py`)**：
+
+- 路由到 `report` 或 `stop-loss` 子命令
+- 统一的命令行接口
 
 **多年查询机制**：
 
@@ -150,21 +171,58 @@ ibkr-toolkit/
 - 自动合并所有年份的交易、股息、预扣税数据
 - 避免 IBKR API 365 天的单次查询限制
 
+### 5. 交易客户端 (`api/trading_client.py`)
+
+负责与 IBKR Web API 交互：
+
+**连接管理**：
+
+- `connect()`: 检查 Web API 连接状态
+- `disconnect()`: 断开连接
+- `is_connected()`: 检查连接状态
+
+**仓位和行情**：
+
+- `get_positions()`: 获取账户所有持仓（股票代码、数量、市值、成本）
+- `get_market_price()`: 获取股票当前市场价格
+
+**订单管理**：
+
+- `place_trailing_stop_order()`: 下追踪止损单（支持 SELL/BUY）
+- `place_trailing_stop_for_positions()`: 为所有持仓批量下单
+- `get_open_orders()`: 查看所有活跃订单
+- `cancel_order()`: 取消指定订单
+- `cancel_orders_by_account()`: 批量取消订单
+
+**重要特性**：
+
+- 使用 IBKR Web API (RESTful API)
+- 订单直接提交到 IBKR 系统，24/7 自动监控
+- 支持 GTC（Good Till Cancelled）订单
+- 支持盘前盘后交易（outsideRth=True）
+
 ## 配置管理
 
 ### 环境变量（`.env`）
 
-必需：
+**税务报表功能（必需）**：
 
 - `IBKR_FLEX_TOKEN`: IBKR API Token
 - `IBKR_QUERY_ID`: Flex Query ID
 
-可选：
+**税务报表功能（可选）**：
 
 - `USD_CNY_RATE`: 固定汇率（默认 7.2）
 - `USE_DYNAMIC_EXCHANGE_RATES`: 是否使用动态汇率（默认 true）
 - `OUTPUT_DIR`: 输出目录（默认 ./data/output）
 - `FIRST_TRADE_YEAR`: 首次交易年份（用于 `--all` 参数）
+
+**Web API 功能（可选）**：
+
+- `IBKR_WEB_API_URL`: Client Portal Gateway URL（默认 https://localhost:5001/v1/api）
+- `IBKR_WEB_API_VERIFY_SSL`: 是否验证 SSL 证书（默认 false）
+- `IBKR_WEB_API_TIMEOUT`: 请求超时时间（默认 30 秒）
+- `IBKR_WEB_API_MAX_REQUESTS_PER_SECOND`: 速率限制（默认 50 次/秒）
 
 ### 配置类 (`config.py`)
 
@@ -253,21 +311,45 @@ uv run pre-commit autoupdate
 
 ### 运行工具
 
+**税务报表**：
+
 ```bash
 # 使用默认配置（Flex Query 日期范围）
-uv run ibkr-toolkit
+uv run ibkr-toolkit report
 
 # 指定单个年份
-uv run ibkr-toolkit --year 2025
+uv run ibkr-toolkit report --year 2025
 
 # 从指定年份查询到现在
-uv run ibkr-toolkit --from-year 2020
+uv run ibkr-toolkit report --from-year 2020
 
 # 查询所有数据（从 FIRST_TRADE_YEAR 到现在）
-uv run ibkr-toolkit --all
+uv run ibkr-toolkit report --all
 
 # 查看帮助
 uv run ibkr-toolkit --help
+```
+
+**交易管理**（需要先启动 Client Portal Gateway）：
+
+```bash
+# 查看所有活跃订单
+uv run ibkr-toolkit stop-loss orders
+
+# 为账户持仓下追踪止损单
+uv run ibkr-toolkit stop-loss place U12345678 --percent 5.0
+
+# 为特定股票下单
+uv run ibkr-toolkit stop-loss place U12345678 --percent 5.0 --symbols AAPL TSLA
+
+# 下追踪止损买单（逢低买入）
+uv run ibkr-toolkit stop-loss place-buy U12345678 --percent 5.0 --symbols AAPL
+
+# 取消订单
+uv run ibkr-toolkit stop-loss cancel 15 12
+
+# 取消账户所有追踪止损单
+uv run ibkr-toolkit stop-loss cancel --account U12345678
 ```
 
 ## 常见开发任务
@@ -286,12 +368,36 @@ uv run ibkr-toolkit --help
 3. 更新 README.md 中的税率计算说明
 4. 添加或更新相关测试
 
-### 添加新的汇率源
+### 添加新的交易功能
 
-1. 在 `services/exchange_rate.py` 的 `_fetch_rate_from_api()` 添加新的 API
-2. 按优先级排序（主 API → 备用 API → 默认值）
-3. 更新日志输出
-4. 测试 API 失败的降级逻辑
+1. 在 `api/trading_client.py` 添加新的 API 方法
+2. 在 `stop_loss_cli.py` 添加新的命令处理函数
+3. 在 `main.py` 的参数解析器中添加新命令
+4. 添加相应的测试
+5. 更新 README.md 文档
+
+**示例**：添加查询账户余额功能
+
+```python
+# 1. 在 trading_client.py 添加方法
+def get_account_balance(self, account: str) -> dict:
+    """Get account balance information"""
+    summary = self.client.get_account_summary(account)
+    # ... implementation
+
+# 2. 在 stop_loss_cli.py 添加命令处理
+def view_account_balance(config: Config, account: str):
+    client = TradingClient(
+        base_url=config.web_api_url,
+        verify_ssl=config.web_api_verify_ssl,
+        timeout=config.web_api_timeout,
+    )
+    balance = client.get_account_balance(account)
+    # ... display logic
+
+# 3. 在 main.py 添加子命令
+balance_parser = stop_loss_subparsers.add_parser('balance', ...)
+```
 
 ## 调试技巧
 

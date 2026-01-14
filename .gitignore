@@ -67,3 +67,11 @@ exchange_rates_cache.json
 
 # Lock files (use uv.lock locally but don't commit)
 uv.lock
+
+# MCP configuration (contains API keys)
+.mcp.json
+
+# Third-party dependencies (not part of source code)
+clientportal.gw/
+external/
+third_party/

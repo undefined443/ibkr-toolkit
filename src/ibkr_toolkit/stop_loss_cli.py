@@ -41,13 +41,13 @@ def place_trailing_stop_orders(
     if logger is None:
         logger = setup_logger("stop_loss", level="INFO", console=True)
 
-    logger.info("Connecting to IBKR Gateway...")
+    logger.info("Connecting to IBKR Web API...")
 
-    # Connect to IB Gateway
+    # Connect to IBKR Web API
     client = TradingClient(
-        host=config.ibkr_gateway_host,
-        port=config.ibkr_gateway_port,
-        client_id=config.ibkr_client_id,
+        base_url=config.web_api_url,
+        verify_ssl=config.web_api_verify_ssl,
+        timeout=config.web_api_timeout,
     )
 
     try:
@@ -124,13 +124,13 @@ def place_trailing_stop_buy_orders(
     if logger is None:
         logger = setup_logger("stop_loss", level="INFO", console=True)
 
-    logger.info("Connecting to IBKR Gateway...")
+    logger.info("Connecting to IBKR Web API...")
 
-    # Connect to IB Gateway
+    # Connect to IBKR Web API
     client = TradingClient(
-        host=config.ibkr_gateway_host,
-        port=config.ibkr_gateway_port,
-        client_id=config.ibkr_client_id,
+        base_url=config.web_api_url,
+        verify_ssl=config.web_api_verify_ssl,
+        timeout=config.web_api_timeout,
     )
 
     try:
@@ -214,13 +214,13 @@ def view_open_orders(
     if logger is None:
         logger = setup_logger("stop_loss", level="INFO", console=True)
 
-    logger.info("Connecting to IBKR Gateway...")
+    logger.info("Connecting to IBKR Web API...")
 
-    # Connect to IB Gateway
+    # Connect to IBKR Web API
     client = TradingClient(
-        host=config.ibkr_gateway_host,
-        port=config.ibkr_gateway_port,
-        client_id=config.ibkr_client_id,
+        base_url=config.web_api_url,
+        verify_ssl=config.web_api_verify_ssl,
+        timeout=config.web_api_timeout,
     )
 
     try:
@@ -260,17 +260,24 @@ def view_open_orders(
 
             for order in order_list:
                 order_id = order.get("orderId", "N/A")
-                symbol = order.get("symbol", "N/A")
-                action = order.get("action", "N/A")
-                quantity = order.get("quantity", 0)
+                # Web API uses "ticker" instead of "symbol"
+                symbol = order.get("ticker") or order.get("symbol", "N/A")
+                # Web API uses "side" instead of "action"
+                action = order.get("side") or order.get("action", "N/A")
+                # Web API uses "totalSize" instead of "quantity"
+                quantity = order.get("totalSize") or order.get("quantity", 0)
                 order_type = order.get("orderType", "N/A")
                 status = order.get("status", "N/A")
 
                 # Get type-specific field
                 if order_type == "TRAIL":
-                    type_info = f"{order.get('trailing_percent', 0):.1f}%"
+                    # Web API may use different field names for trailing percent
+                    type_info = (
+                        f"{order.get('trailingPercent', order.get('trailing_percent', 0)):.1f}%"
+                    )
                 elif order_type == "STP":
-                    type_info = f"${order.get('stop_price', 0):.2f}"
+                    # Web API uses "auxPrice" for stop price
+                    type_info = f"${order.get('auxPrice', order.get('stop_price', 0)):.2f}"
                 else:
                     type_info = "-"
 
@@ -321,13 +328,13 @@ def cancel_trailing_stop_orders(
         print("\nError: --symbols parameter requires --account")
         sys.exit(1)
 
-    logger.info("Connecting to IBKR Gateway...")
+    logger.info("Connecting to IBKR Web API...")
 
-    # Connect to IB Gateway
+    # Connect to IBKR Web API
     client = TradingClient(
-        host=config.ibkr_gateway_host,
-        port=config.ibkr_gateway_port,
-        client_id=config.ibkr_client_id,
+        base_url=config.web_api_url,
+        verify_ssl=config.web_api_verify_ssl,
+        timeout=config.web_api_timeout,
     )
 
     try:
@@ -344,10 +351,23 @@ def cancel_trailing_stop_orders(
             cancelled_count = 0
             failed_count = 0
 
+            # First, get all orders to find which account each order belongs to
+            all_orders = client.get_open_orders()
+            order_account_map = {
+                order.get("orderId"): order.get("account", "") for order in all_orders
+            }
+
             for order_id in order_ids:
+                # Find the account for this order
+                order_account = order_account_map.get(order_id)
+                if not order_account:
+                    print(f"  Order {order_id} not found or no account info")
+                    failed_count += 1
+                    continue
+
                 try:
-                    client.cancel_order(order_id)
-                    print(f"  Order {order_id} cancelled")
+                    client.cancel_order(order_account, order_id)
+                    print(f"  Order {order_id} (Account: {order_account}) cancelled")
                     cancelled_count += 1
                 except Exception as e:
                     print(f"  Order {order_id} cancellation failed: {e}")
