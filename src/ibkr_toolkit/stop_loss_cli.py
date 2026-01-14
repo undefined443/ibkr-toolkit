@@ -198,6 +198,87 @@ def place_trailing_stop_buy_orders(
         client.disconnect()
 
 
+def view_positions(
+    config: Config,
+    account: str,
+    logger: Optional[any] = None,
+) -> None:
+    """
+    View account positions
+
+    Args:
+        config: Configuration object
+        account: Account ID to view positions for
+        logger: Logger instance
+    """
+    if logger is None:
+        logger = setup_logger("stop_loss", level="INFO", console=True)
+
+    logger.info("Connecting to IBKR Web API...")
+
+    # Connect to IBKR Web API
+    client = TradingClient(
+        base_url=config.web_api_url,
+        verify_ssl=config.web_api_verify_ssl,
+        timeout=config.web_api_timeout,
+    )
+
+    try:
+        client.connect()
+
+        print(f"\n{'=' * 80}")
+        print(f"Positions for Account {account}")
+        print(f"{'=' * 80}\n")
+
+        # Get positions
+        positions = client.get_positions(account)
+
+        if not positions:
+            print("No positions found")
+            return
+
+        # Display positions
+        print("-" * 80)
+        print(
+            f"{'Symbol':<8} {'Qty':<8} {'Avg Cost':<12} {'Mkt Price':<12} "
+            f"{'Mkt Value':<14} {'Unreal P&L':<14}"
+        )
+        print("-" * 80)
+
+        total_market_value = 0
+        total_unrealized_pnl = 0
+
+        for pos in positions:
+            symbol = pos.get("symbol", "N/A")
+            quantity = pos.get("position", 0)
+            avg_cost = pos.get("avgCost", 0)
+            mkt_price = pos.get("mktPrice", 0)
+            mkt_value = pos.get("mktValue", 0)
+            unrealized_pnl = pos.get("unrealizedPnl", 0)
+
+            total_market_value += mkt_value
+            total_unrealized_pnl += unrealized_pnl
+
+            # Color code P&L
+            pnl_str = f"${unrealized_pnl:,.2f}"
+
+            print(
+                f"{symbol:<8} {quantity:<8.0f} ${avg_cost:<11,.2f} ${mkt_price:<11,.2f} "
+                f"${mkt_value:<13,.2f} {pnl_str:<14}"
+            )
+
+        print("-" * 80)
+        print(
+            f"{'TOTAL':<8} {'':<8} {'':<12} {'':<12} "
+            f"${total_market_value:<13,.2f} ${total_unrealized_pnl:<13,.2f}"
+        )
+        print("-" * 80)
+        print(f"\nTotal: {len(positions)} positions")
+
+    finally:
+        client.disconnect()
+
+
 def view_open_orders(
     config: Config,
     account: Optional[str] = None,
@@ -433,6 +514,9 @@ def parse_args() -> argparse.Namespace:
         epilog="""
 Examples:
 
+  # View account positions
+  ibkr-toolkit stop-loss positions U12345678
+
   # Place trailing stop SELL orders for account (all positions)
   ibkr-toolkit stop-loss place U12345678 --percent 5.0
 
@@ -502,6 +586,10 @@ Note:
         help="Symbols to place buy orders for (required)",
     )
 
+    # Positions command - view account positions
+    positions_parser = subparsers.add_parser("positions", help="View account positions")
+    positions_parser.add_argument("account", help="Account ID (e.g., U12345678)")
+
     # Orders command - view open orders
     orders_parser = subparsers.add_parser("orders", help="View active orders")
     orders_parser.add_argument("--account", help="Filter by account (optional)")
@@ -567,6 +655,12 @@ def main() -> None:
                 account=args.account,
                 trailing_percent=args.percent,
                 symbols=[s.upper() for s in args.symbols],
+                logger=logger,
+            )
+        elif args.command == "positions":
+            view_positions(
+                config=config,
+                account=args.account,
                 logger=logger,
             )
         elif args.command == "orders":
