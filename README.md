@@ -198,6 +198,37 @@ uv run ibkr-toolkit web snapshot 265598,76792991
 uv run ibkr-toolkit web positions U12345678 --format json
 ```
 
+#### Performance 查询功能
+
+**前置条件**：需要先启动 Client Portal Gateway 并登录（同 Web API 功能）。
+
+**命令示例**：
+
+```bash
+# 查看单个账户的月度表现（默认）
+uv run ibkr-toolkit performance U12345678
+
+# 查看多个账户的表现
+uv run ibkr-toolkit performance U12345678 U87654321
+
+# 指定不同的时间周期
+uv run ibkr-toolkit performance U12345678 --period 1D   # 1天
+uv run ibkr-toolkit performance U12345678 --period 7D   # 7天
+uv run ibkr-toolkit performance U12345678 --period MTD  # 月初至今
+uv run ibkr-toolkit performance U12345678 --period 1M   # 1个月（默认）
+uv run ibkr-toolkit performance U12345678 --period YTD  # 年初至今
+uv run ibkr-toolkit performance U12345678 --period 1Y   # 1年
+
+# 以 JSON 格式输出
+uv run ibkr-toolkit performance U12345678 --format json
+```
+
+**重要提示**：
+
+- **速率限制**：此 API 端点每 15 分钟只能请求 1 次
+- **数据范围**：默认最多查询 365 天的历史数据
+- 返回的数据包括：总回报、已实现/未实现盈亏、净值变化等指标
+
 **日期参数说明**：
 
 - `--year` / `-y`：指定单个税务年度，查询该年 1月1日 至 12月31日 的数据

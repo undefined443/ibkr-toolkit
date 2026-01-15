@@ -477,3 +477,29 @@ class WebAPIClient:
             List of matching contracts
         """
         return self._request("POST", "/iserver/scanner/run", data=scanner_data)
+
+    # ==================== Performance Analytics ====================
+
+    def get_performance(self, account_ids: List[str], period: str = "1M") -> Dict[str, Any]:
+        """
+        Get account performance data
+
+        Args:
+            account_ids: List of account IDs to query
+            period: Time period for performance data. Options:
+                   - "1D": 1 day
+                   - "7D": 7 days
+                   - "MTD": Month To Date
+                   - "1M": 1 month
+                   - "YTD": Year To Date
+                   - "1Y": 1 year
+
+        Returns:
+            Performance data including returns, P&L, and other metrics
+
+        Note:
+            Rate limit: 1 request per 15 minutes
+            Default: up to 365 days of historical data
+        """
+        data = {"acctIds": account_ids, "period": period}
+        return self._request("POST", "/pa/performance", data=data)

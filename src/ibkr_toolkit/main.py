@@ -182,6 +182,30 @@ def create_parser() -> argparse.ArgumentParser:
         "--format", choices=["table", "json"], default="table", help="Output format"
     )
 
+    # Performance subcommand
+    performance_parser = subparsers.add_parser(
+        "performance",
+        help="Query account performance data",
+        description="Query account performance data using IBKR Web API",
+    )
+    performance_parser.add_argument(
+        "accounts",
+        nargs="+",
+        help="Account ID(s) to query (e.g., U12345678)",
+    )
+    performance_parser.add_argument(
+        "--period",
+        choices=["1D", "7D", "MTD", "1M", "YTD", "1Y"],
+        default="1M",
+        help="Time period for performance data (default: 1M)",
+    )
+    performance_parser.add_argument(
+        "--format",
+        choices=["table", "json"],
+        default="table",
+        help="Output format (default: table)",
+    )
+
     return parser
 
 
@@ -256,6 +280,23 @@ def main() -> None:
                 sys.exit(search_command(config, args.symbol, args.format))
             elif args.web_command == "snapshot":
                 sys.exit(snapshot_command(config, args.conids, args.format))
+        except KeyboardInterrupt:
+            print("\nOperation cancelled by user")
+            sys.exit(130)
+
+    elif args.command == "performance":
+        from ibkr_toolkit.config import Config
+        from ibkr_toolkit.performance_cli import view_performance
+
+        config = Config()
+
+        try:
+            view_performance(
+                config=config,
+                accounts=args.accounts,
+                period=args.period,
+                output_format=args.format,
+            )
         except KeyboardInterrupt:
             print("\nOperation cancelled by user")
             sys.exit(130)

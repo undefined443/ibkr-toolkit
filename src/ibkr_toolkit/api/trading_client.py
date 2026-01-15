@@ -436,6 +436,32 @@ class TradingClient:
             logger.error(f"Failed to cancel orders: {e}")
             raise
 
+    def get_performance(self, account_ids: List[str], period: str = "1M") -> Dict[str, Any]:
+        """
+        Get account performance data
+
+        Args:
+            account_ids: List of account IDs to query
+            period: Time period. Options: 1D, 7D, MTD, 1M, YTD, 1Y
+
+        Returns:
+            Performance data dictionary with returns, P&L, and metrics
+
+        Raises:
+            WebAPIError: If request fails
+
+        Note:
+            Rate limit: 1 request per 15 minutes
+        """
+        try:
+            performance = self.client.get_performance(account_ids, period)
+            logger.info(f"Retrieved performance data for {len(account_ids)} accounts")
+            return performance
+
+        except WebAPIError as e:
+            logger.error(f"Failed to get performance data: {e}")
+            raise
+
     def __enter__(self):
         """Context manager entry"""
         self.connect()

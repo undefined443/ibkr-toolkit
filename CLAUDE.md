@@ -488,6 +488,7 @@ test: add tests for date range override
 ## 参考资源
 
 - [IBKR Flex Query API 文档](https://www.interactivebrokers.com/en/software/am/am/reports/flex_web_service_version_3.htm)
+- [IBKR Web API 文档](https://www.interactivebrokers.com/campus/ibkr-api-page/webapi-doc/)
 - [中国个人所得税法](http://www.chinatax.gov.cn/)
 - [pandas 文档](https://pandas.pydata.org/)
 - [uv 文档](https://github.com/astral-sh/uv)
